@@ -133,6 +133,7 @@ class Snake:
             (center_x - 2, center_y),
         ])
         self.direction = Direction.RIGHT
+        self.next_direction = Direction.RIGHT  # 缓冲输入，防止同帧内连续转向导致反向
         self.growing = False
 
     @property
@@ -140,22 +141,23 @@ class Snake:
         return self.body[0]
 
     def set_direction(self, new_dir: Direction):
-        """更改方向，禁止直接反向（防止蛇穿自己）。"""
-        # 不允许反向
+        """更改方向，始终以已提交的方向为基准检查反向，防止同帧内连续按键导致意外反向。"""
         opposites = {
             Direction.UP: Direction.DOWN,
             Direction.DOWN: Direction.UP,
             Direction.LEFT: Direction.RIGHT,
             Direction.RIGHT: Direction.LEFT,
         }
+        # 始终与 move() 中已提交的方向比较，避免一帧内多次改向叠加出反向
         if new_dir != opposites[self.direction]:
-            self.direction = new_dir
+            self.next_direction = new_dir
 
     def move(self) -> bool:
         """
-        移动蛇一步。
+        移动蛇一步。先将缓冲的输入方向提交，再执行移动。
         返回 True 表示移动成功，False 表示撞到自己。
         """
+        self.direction = self.next_direction
         dx, dy = self.direction.value
         new_head = (
             (self.head[0] + dx) % GRID_WIDTH,
@@ -301,6 +303,8 @@ class Game:
             elif event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_ESCAPE:
                     self.quit = True
+                elif event.key == pygame.K_r:
+                    self.reset()
 
                 elif self.running:
                     if event.key == pygame.K_UP or event.key == pygame.K_w:
@@ -319,9 +323,7 @@ class Game:
                         self.current_map = (self.current_map + 1) % len(MAPS)
                         self.reset()
                 else:
-                    if event.key == pygame.K_r:
-                        self.reset()
-                    elif event.key == pygame.K_TAB:
+                    if event.key == pygame.K_TAB:
                         self.current_map = (self.current_map + 1) % len(MAPS)
                         self.reset()
 

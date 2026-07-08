@@ -302,7 +302,8 @@ document.addEventListener('keydown', e => {
   };
 
   if (running && !paused) {
-    if (keyMap[e.key] && keyMap[e.key].opposite !== direction.opposite) {
+    // 始终以已提交的 direction 为基准检查反向，防止同帧内连续按键导致意外反向
+    if (keyMap[e.key] && keyMap[e.key] !== DIR[direction.opposite]) {
       nextDir = keyMap[e.key];
     }
     if (e.key === ' ') { e.preventDefault(); speedBoost = true; updateUI(); }
