@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
 <title>🦖 小恐龙 · Dino Runner</title>
 <style>
 * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -14,6 +14,8 @@ body {
   min-height: 100vh;
   font-family: 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
   flex-direction: column;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
 }
 .game-wrapper { text-align: center; }
 h1 {
@@ -27,6 +29,8 @@ canvas {
   border-radius: 6px;
   display: block;
   margin: 0 auto;
+  max-width: 100%;
+  height: auto;
 }
 .info {
   color: #b4b4b4;
@@ -54,7 +58,7 @@ canvas {
   <h1>🦖 小恐龙跑酷</h1>
   <canvas id="gameCanvas"></canvas>
   <div class="info"><span id="scoreDisplay">得分: 0</span> | <span id="bestDisplay">最佳: 0</span></div>
-  <div class="hints">空格 / ↑ 跳跃 | ↓ 下蹲 | 躲避障碍物</div>
+  <div class="hints">点击/空格/↑ 跳跃 | ↓ 或长按蹲下 | 手机兼容</div>
   <a class="back-link" href="index.html">← 返回游戏大厅</a>
 </div>
 <script>
@@ -72,6 +76,7 @@ const JUMP_VEL = -12;
 let dinoY, dinoVel, onGround, obstacles, score, best, running, started;
 let gameSpeed, frameCount;
 let ducking = false;
+let touchTimer = null;
 
 function reset() {
   dinoY = GROUND_Y;
@@ -95,10 +100,12 @@ function jump() {
   if (onGround) {
     dinoVel = JUMP_VEL;
     onGround = false;
+    ducking = false;
   }
 }
 
 function duck(isDown) {
+  if (!running || !started) return;
   ducking = isDown && onGround;
 }
 
@@ -145,10 +152,6 @@ function update() {
   // Score
   score++;
   if (score % 100 === 0) updateUI();
-  // Milestone
-  if (score > 0 && score % 500 === 0) {
-    // flash effect could go here
-  }
 
   // Collision detection
   const dBBox = {
@@ -233,7 +236,7 @@ function draw() {
     ctx.fillStyle = '#535353';
     ctx.font = 'bold 22px "Segoe UI","PingFang SC","Microsoft YaHei",sans-serif';
     ctx.textAlign = 'center';
-    ctx.fillText('按空格键或 ↑ 开始游戏', W / 2, H / 2 - 10);
+    ctx.fillText('点击屏幕 或 按空格键 开始', W / 2, H / 2 - 10);
     ctx.textAlign = 'start';
   }
 
@@ -250,7 +253,7 @@ function draw() {
     ctx.fillText(`得分: ${Math.floor(score / 10)}    最佳: ${Math.floor(best / 10)}`, W / 2, H / 2 + 5);
     ctx.fillStyle = '#999';
     ctx.font = '13px "Segoe UI","PingFang SC","Microsoft YaHei",sans-serif';
-    ctx.fillText('按空格或 ↑ 重新开始', W / 2, H / 2 + 35);
+    ctx.fillText('点击屏幕 或 按空格 重新开始', W / 2, H / 2 + 35);
     ctx.textAlign = 'start';
   }
 }
@@ -271,13 +274,11 @@ function drawDino(x, y, onGround) {
   ctx.fillRect(x + 30, top + 10, 8, 2);
   // Legs
   if (onGround) {
-    // Running animation
     const legPhase = Math.floor(frameCount / 4) % 2;
     ctx.fillRect(x + 10, top + 32, 6, 12);
     ctx.fillRect(x + 18, top + 32, 6, legPhase ? 8 : 12);
     ctx.fillRect(x + 24, top + 32, 4, legPhase ? 12 : 8);
   } else {
-    // Jumping pose
     ctx.fillRect(x + 14, top + 32, 4, 8);
     ctx.fillRect(x + 20, top + 28, 4, 8);
   }
@@ -307,7 +308,7 @@ function drawCactus(x, y, h) {
   ctx.fillStyle = '#535353';
   // Main stem
   ctx.fillRect(x + 4, y + 4, 8, h - 4);
-  // Arms (random based on position for variety)
+  // Arms
   const seed = Math.floor(x);
   if (seed % 3 === 0) {
     ctx.fillRect(x + 12, y + h * 0.3, 6, 4);
@@ -317,18 +318,14 @@ function drawCactus(x, y, h) {
     ctx.fillRect(x - 6, y + h * 0.5, 6, 4);
     ctx.fillRect(x - 6, y + h * 0.5 - 8, 4, 8);
   }
-  // Top round
   ctx.fillRect(x + 4, y, 8, 4);
 }
 
 function drawBird(x, y) {
   ctx.fillStyle = '#535353';
   const wingPhase = Math.floor(frameCount / 6) % 2;
-  // Body
   ctx.fillRect(x, y + 6, 30, 8);
-  // Head/beak
   ctx.fillRect(x + 24, y + 4, 8, 4);
-  // Wings
   if (wingPhase === 0) {
     ctx.fillRect(x + 10, y, 10, 8);
   } else {
@@ -346,7 +343,7 @@ function gameLoop() {
   requestAnimationFrame(gameLoop);
 }
 
-// Controls
+// ===== 键盘控制 =====
 document.addEventListener('keydown', e => {
   if (e.key === ' ' || e.key === 'ArrowUp') { e.preventDefault(); jump(); }
   if (e.key === 'ArrowDown') { e.preventDefault(); duck(true); }
@@ -354,7 +351,32 @@ document.addEventListener('keydown', e => {
 document.addEventListener('keyup', e => {
   if (e.key === 'ArrowDown') { e.preventDefault(); duck(false); }
 });
-canvas.addEventListener('click', () => jump());
+
+// ===== 触屏 + 点击控制（手机兼容） =====
+// 短按/点击 → 跳跃，长按 → 蹲下
+canvas.addEventListener('click', e => { e.preventDefault(); jump(); });
+document.addEventListener('click', e => { jump(); });
+document.addEventListener('touchstart', e => {
+  e.preventDefault();
+  if (!running) { jump(); return; }
+  if (!started) { jump(); return; }
+  // 按住超过 200ms 触发蹲下
+  touchTimer = setTimeout(() => { duck(true); }, 200);
+}, { passive: false });
+document.addEventListener('touchend', e => {
+  e.preventDefault();
+  if (touchTimer) {
+    clearTimeout(touchTimer);
+    touchTimer = null;
+    // 短按（未触发蹲下）→ 跳跃
+    if (!ducking) jump();
+  }
+  duck(false);
+}, { passive: false });
+document.addEventListener('touchcancel', e => {
+  if (touchTimer) { clearTimeout(touchTimer); touchTimer = null; }
+  duck(false);
+});
 
 reset();
 gameLoop();
