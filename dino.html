@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>🦖 小恐龙 · Dino Runner</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  background: #1a1a1a;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  font-family: 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  flex-direction: column;
+}
+.game-wrapper { text-align: center; }
+h1 {
+  color: #d8a050;
+  font-size: 24px;
+  margin-bottom: 6px;
+  letter-spacing: 2px;
+}
+canvas {
+  border: 3px solid #333;
+  border-radius: 6px;
+  display: block;
+  margin: 0 auto;
+}
+.info {
+  color: #b4b4b4;
+  font-size: 14px;
+  margin-top: 8px;
+}
+.hints {
+  color: #64646e;
+  font-size: 12px;
+  margin-top: 6px;
+}
+.back-link {
+  display: inline-block;
+  margin-top: 12px;
+  color: #505060;
+  text-decoration: none;
+  font-size: 13px;
+  transition: color 0.2s;
+}
+.back-link:hover { color: #d8a050; }
+</style>
+</head>
+<body>
+<div class="game-wrapper">
+  <h1>🦖 小恐龙跑酷</h1>
+  <canvas id="gameCanvas"></canvas>
+  <div class="info"><span id="scoreDisplay">得分: 0</span> | <span id="bestDisplay">最佳: 0</span></div>
+  <div class="hints">空格 / ↑ 跳跃 | ↓ 下蹲 | 躲避障碍物</div>
+  <a class="back-link" href="index.html">← 返回游戏大厅</a>
+</div>
+<script>
+const W = 700, H = 300;
+const canvas = document.getElementById('gameCanvas');
+canvas.width = W; canvas.height = H;
+const ctx = canvas.getContext('2d');
+
+// Constants
+const GROUND_Y = 240;
+const GRAVITY = 0.7;
+const JUMP_VEL = -12;
+
+// State
+let dinoY, dinoVel, onGround, obstacles, score, best, running, started;
+let gameSpeed, frameCount;
+let ducking = false;
+
+function reset() {
+  dinoY = GROUND_Y;
+  dinoVel = 0;
+  onGround = true;
+  obstacles = [];
+  score = 0;
+  running = true;
+  started = false;
+  gameSpeed = 5;
+  frameCount = 0;
+  ducking = false;
+  best = Math.max(best || 0, parseInt(localStorage.getItem('dinoBest') || '0'));
+  document.getElementById('bestDisplay').textContent = `最佳: ${best}`;
+  updateUI();
+}
+
+function jump() {
+  if (!running) { reset(); return; }
+  if (!started) { started = true; }
+  if (onGround) {
+    dinoVel = JUMP_VEL;
+    onGround = false;
+  }
+}
+
+function duck(isDown) {
+  ducking = isDown && onGround;
+}
+
+function spawnObstacle() {
+  const r = Math.random();
+  if (r < 0.65) {
+    // Cactus
+    const h = 25 + Math.random() * 20;
+    obstacles.push({ x: W, type: 'cactus', w: 16, h: h });
+  } else {
+    // Pterodactyl
+    const y = GROUND_Y - 35 - Math.random() * 40;
+    obstacles.push({ x: W, type: 'bird', w: 30, h: 20, y: y });
+  }
+}
+
+function update() {
+  if (!running || !started) return;
+  frameCount++;
+
+  // Speed increase
+  gameSpeed = 5 + Math.floor(score / 300) * 0.8;
+  if (gameSpeed > 14) gameSpeed = 14;
+
+  // Dino physics
+  if (!onGround) {
+    dinoVel += GRAVITY;
+    dinoY += dinoVel;
+    if (dinoY >= GROUND_Y) {
+      dinoY = GROUND_Y;
+      dinoVel = 0;
+      onGround = true;
+    }
+  }
+
+  // Spawn obstacles
+  const spawnGap = Math.max(40, 110 - score / 30);
+  if (frameCount % Math.floor(spawnGap) === 0) spawnObstacle();
+
+  // Move obstacles
+  for (let o of obstacles) o.x -= gameSpeed;
+  obstacles = obstacles.filter(o => o.x > -50);
+
+  // Score
+  score++;
+  if (score % 100 === 0) updateUI();
+  // Milestone
+  if (score > 0 && score % 500 === 0) {
+    // flash effect could go here
+  }
+
+  // Collision detection
+  const dBBox = {
+    x: 50,
+    y: dinoY - (ducking ? 30 : 44),
+    w: ducking ? 44 : 28,
+    h: ducking ? 30 : 44
+  };
+
+  for (let o of obstacles) {
+    let ob;
+    if (o.type === 'cactus') {
+      ob = { x: o.x + 4, y: GROUND_Y - o.h, w: o.w - 8, h: o.h };
+    } else {
+      ob = { x: o.x + 4, y: o.y, w: o.w - 8, h: o.h - 4 };
+    }
+    if (dBBox.x < ob.x + ob.w && dBBox.x + dBBox.w > ob.x &&
+        dBBox.y < ob.y + ob.h && dBBox.y + dBBox.h > ob.y) {
+      die();
+      return;
+    }
+  }
+}
+
+function die() {
+  running = false;
+  if (score > best) {
+    best = score;
+    localStorage.setItem('dinoBest', best);
+    document.getElementById('bestDisplay').textContent = `最佳: ${best}`;
+  }
+  updateUI();
+}
+
+function draw() {
+  // Background
+  ctx.fillStyle = '#f7f7f7';
+  ctx.fillRect(0, 0, W, H);
+
+  // Ground line
+  ctx.strokeStyle = '#535353';
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(0, GROUND_Y);
+  ctx.lineTo(W, GROUND_Y);
+  ctx.stroke();
+
+  // Ground dots (scrolling)
+  const dotOffset = (frameCount * gameSpeed) % 20;
+  ctx.fillStyle = '#aaa';
+  for (let x = -dotOffset; x < W; x += 20) {
+    ctx.fillRect(x, GROUND_Y + 8, 3, 3);
+  }
+
+  // Obstacles
+  for (let o of obstacles) {
+    if (o.type === 'cactus') {
+      drawCactus(o.x, GROUND_Y - o.h, o.h);
+    } else {
+      drawBird(o.x, o.y);
+    }
+  }
+
+  // Dino
+  if (ducking && onGround) {
+    drawDinoDuck(50, dinoY);
+  } else {
+    drawDino(50, dinoY, onGround);
+  }
+
+  // Score display
+  ctx.fillStyle = '#535353';
+  ctx.font = 'bold 18px "Courier New", monospace';
+  ctx.textAlign = 'right';
+  ctx.fillText(Math.floor(score / 10).toString().padStart(5, '0'), W - 20, 30);
+  ctx.textAlign = 'start';
+
+  // Start overlay
+  if (!started && running) {
+    ctx.fillStyle = 'rgba(255,255,255,0.5)';
+    ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = '#535353';
+    ctx.font = 'bold 22px "Segoe UI","PingFang SC","Microsoft YaHei",sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('按空格键或 ↑ 开始游戏', W / 2, H / 2 - 10);
+    ctx.textAlign = 'start';
+  }
+
+  // Game over
+  if (!running) {
+    ctx.fillStyle = 'rgba(255,255,255,0.7)';
+    ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = '#333';
+    ctx.font = 'bold 24px "Segoe UI","PingFang SC","Microsoft YaHei",sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('游戏结束', W / 2, H / 2 - 30);
+    ctx.fillStyle = '#535353';
+    ctx.font = '15px "Segoe UI","PingFang SC","Microsoft YaHei",sans-serif';
+    ctx.fillText(`得分: ${Math.floor(score / 10)}    最佳: ${Math.floor(best / 10)}`, W / 2, H / 2 + 5);
+    ctx.fillStyle = '#999';
+    ctx.font = '13px "Segoe UI","PingFang SC","Microsoft YaHei",sans-serif';
+    ctx.fillText('按空格或 ↑ 重新开始', W / 2, H / 2 + 35);
+    ctx.textAlign = 'start';
+  }
+}
+
+function drawDino(x, y, onGround) {
+  const top = y - 44;
+  ctx.fillStyle = '#535353';
+  // Body
+  ctx.fillRect(x + 10, top + 8, 18, 24);
+  // Head
+  ctx.fillRect(x + 18, top, 16, 14);
+  // Eye
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(x + 26, top + 4, 4, 4);
+  ctx.fillStyle = '#535353';
+  ctx.fillRect(x + 28, top + 5, 2, 2);
+  // Mouth
+  ctx.fillRect(x + 30, top + 10, 8, 2);
+  // Legs
+  if (onGround) {
+    // Running animation
+    const legPhase = Math.floor(frameCount / 4) % 2;
+    ctx.fillRect(x + 10, top + 32, 6, 12);
+    ctx.fillRect(x + 18, top + 32, 6, legPhase ? 8 : 12);
+    ctx.fillRect(x + 24, top + 32, 4, legPhase ? 12 : 8);
+  } else {
+    // Jumping pose
+    ctx.fillRect(x + 14, top + 32, 4, 8);
+    ctx.fillRect(x + 20, top + 28, 4, 8);
+  }
+  // Arm
+  ctx.fillRect(x + 6, top + 14, 6, 3);
+  // Tail
+  ctx.fillRect(x, top + 12, 12, 4);
+  ctx.fillRect(x - 2, top + 10, 4, 2);
+}
+
+function drawDinoDuck(x, y) {
+  const top = y - 30;
+  ctx.fillStyle = '#535353';
+  // Flat body
+  ctx.fillRect(x, top, 44, 16);
+  // Eye
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(x + 32, top + 4, 4, 4);
+  ctx.fillStyle = '#535353';
+  ctx.fillRect(x + 34, top + 5, 2, 2);
+  // Legs
+  ctx.fillRect(x + 8, top + 16, 6, 10);
+  ctx.fillRect(x + 30, top + 16, 6, 10);
+}
+
+function drawCactus(x, y, h) {
+  ctx.fillStyle = '#535353';
+  // Main stem
+  ctx.fillRect(x + 4, y + 4, 8, h - 4);
+  // Arms (random based on position for variety)
+  const seed = Math.floor(x);
+  if (seed % 3 === 0) {
+    ctx.fillRect(x + 12, y + h * 0.3, 6, 4);
+    ctx.fillRect(x + 14, y + h * 0.3 - 8, 4, 8);
+  }
+  if (seed % 3 === 1) {
+    ctx.fillRect(x - 6, y + h * 0.5, 6, 4);
+    ctx.fillRect(x - 6, y + h * 0.5 - 8, 4, 8);
+  }
+  // Top round
+  ctx.fillRect(x + 4, y, 8, 4);
+}
+
+function drawBird(x, y) {
+  ctx.fillStyle = '#535353';
+  const wingPhase = Math.floor(frameCount / 6) % 2;
+  // Body
+  ctx.fillRect(x, y + 6, 30, 8);
+  // Head/beak
+  ctx.fillRect(x + 24, y + 4, 8, 4);
+  // Wings
+  if (wingPhase === 0) {
+    ctx.fillRect(x + 10, y, 10, 8);
+  } else {
+    ctx.fillRect(x + 10, y + 12, 10, 8);
+  }
+}
+
+function updateUI() {
+  document.getElementById('scoreDisplay').textContent = `得分: ${Math.floor(score / 10)}`;
+}
+
+function gameLoop() {
+  update();
+  draw();
+  requestAnimationFrame(gameLoop);
+}
+
+// Controls
+document.addEventListener('keydown', e => {
+  if (e.key === ' ' || e.key === 'ArrowUp') { e.preventDefault(); jump(); }
+  if (e.key === 'ArrowDown') { e.preventDefault(); duck(true); }
+});
+document.addEventListener('keyup', e => {
+  if (e.key === 'ArrowDown') { e.preventDefault(); duck(false); }
+});
+canvas.addEventListener('click', () => jump());
+
+reset();
+gameLoop();
+</script>
+</body>
+</html>

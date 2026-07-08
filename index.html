@@ -3,328 +3,140 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>🐍 贪吃蛇 · 多地图版</title>
+<title>🎮 经典游戏合集</title>
 <style>
 * { margin: 0; padding: 0; box-sizing: border-box; }
 body {
-  background: #0d0d1a;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  min-height: 100vh;
+  background: #0a0a18;
+  color: #e0e0e0;
   font-family: 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
-}
-.game-wrapper {
-  text-align: center;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
 }
 h1 {
-  color: #50c850;
-  font-size: 28px;
-  margin-bottom: 8px;
+  font-size: 2.4em;
+  margin-bottom: 6px;
+  letter-spacing: 3px;
+  background: linear-gradient(135deg, #50c850, #50c8c8, #c850c8);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+.subtitle {
+  color: #666;
+  font-size: 14px;
+  margin-bottom: 40px;
   letter-spacing: 2px;
 }
-canvas {
-  border: 3px solid #333;
-  border-radius: 6px;
-  display: block;
-  margin: 0 auto;
-}
-.info-bar {
+.games-grid {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
-  color: #b4b4b4;
-  font-size: 14px;
-  margin: 6px 4px 2px;
+  flex-wrap: wrap;
+  gap: 24px;
+  justify-content: center;
+  max-width: 900px;
 }
-.info-bar .boost {
-  color: #ffc832;
+.game-card {
+  background: #12122a;
+  border: 2px solid #252545;
+  border-radius: 16px;
+  width: 260px;
+  padding: 30px 24px 24px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  text-decoration: none;
+  color: inherit;
+  display: block;
 }
-.hints {
-  color: #64646e;
+.game-card:hover {
+  border-color: #50c850;
+  transform: translateY(-6px);
+  box-shadow: 0 12px 32px rgba(80, 200, 80, 0.15);
+}
+.game-card:nth-child(2):hover {
+  border-color: #50a8d8;
+  box-shadow: 0 12px 32px rgba(80, 168, 216, 0.15);
+}
+.game-card:nth-child(3):hover {
+  border-color: #d8a050;
+  box-shadow: 0 12px 32px rgba(216, 160, 80, 0.15);
+}
+.game-icon {
+  font-size: 56px;
+  margin-bottom: 14px;
+  display: block;
+}
+.game-name {
+  font-size: 20px;
+  font-weight: 700;
+  margin-bottom: 8px;
+  letter-spacing: 1px;
+}
+.game-desc {
+  font-size: 13px;
+  color: #888;
+  line-height: 1.6;
+}
+.game-badge {
+  display: inline-block;
+  margin-top: 12px;
+  padding: 3px 10px;
+  border-radius: 10px;
+  font-size: 11px;
+  background: #1a1a3a;
+  color: #50c850;
+  border: 1px solid #2a2a50;
+}
+.game-card:nth-child(2) .game-badge { color: #50a8d8; }
+.game-card:nth-child(3) .game-badge { color: #d8a050; }
+
+.footer {
+  margin-top: 50px;
+  color: #444;
   font-size: 12px;
-  margin-top: 6px;
+  text-align: center;
+  line-height: 1.8;
 }
+.footer a { color: #666; text-decoration: none; }
+.footer a:hover { color: #50c850; }
 </style>
 </head>
 <body>
-<div class="game-wrapper">
-  <h1>🐍 贪吃蛇 · 多地图版</h1>
-  <canvas id="gameCanvas"></canvas>
-  <div class="info-bar">
-    <span id="scoreDisplay">得分: 0</span>
-    <span id="mapDisplay">地图: 经典模式</span>
-    <span id="boostDisplay" class="boost"></span>
-  </div>
-  <div class="hints">方向键 / WASD 移动 &nbsp;|&nbsp; 空格 加速 &nbsp;|&nbsp; P 暂停 &nbsp;|&nbsp; Tab 换地图</div>
+
+<h1>🎮 经典游戏合集</h1>
+<p class="subtitle">Classic Arcade Collection</p>
+
+<div class="games-grid">
+  <a class="game-card" href="snake.html">
+    <span class="game-icon">🐍</span>
+    <div class="game-name">贪 吃 蛇</div>
+    <div class="game-desc">经典贪吃蛇 · 多地图版<br>迷宫 / 四柱 / 回廊四种地形<br>支持加速与暂停</div>
+    <span class="game-badge">方向键 / WASD</span>
+  </a>
+
+  <a class="game-card" href="flappy.html">
+    <span class="game-icon">🐤</span>
+    <div class="game-name">管 道 鸟</div>
+    <div class="game-desc">Flappy Bird 经典复刻<br>点击或空格让小鸟飞翔<br>穿越管道获取分数</div>
+    <span class="game-badge">空格 / 点击</span>
+  </a>
+
+  <a class="game-card" href="dino.html">
+    <span class="game-icon">🦖</span>
+    <div class="game-name">小 恐 龙</div>
+    <div class="game-desc">Chrome Dino 跑酷<br>跳跃躲避仙人掌和飞鸟<br>速度越来越快</div>
+    <span class="game-badge">空格 / 方向键</span>
+  </a>
 </div>
-<script>
-const CELL = 20;
-const GW = 30;
-const GH = 20;
-const W = GW * CELL;
-const H = GH * CELL;
-const FPS = 10;
-const BOOST_FPS = Math.floor(FPS * 1.5);
 
-const canvas = document.getElementById('gameCanvas');
-canvas.width = W;
-canvas.height = H;
-const ctx = canvas.getContext('2d');
+<div class="footer">
+  也支持 Python 桌面版：<code>python snake_game.py | flappy_bird.py | dino_game.py</code><br>
+  <a href="https://github.com/lifelonglearnerAdam/snake-game" target="_blank">GitHub · lifelonglearnerAdam/snake-game</a>
+</div>
 
-const MAPS = [
-  { name: '经典模式', obstacles: new Set() },
-  { name: '迷宫模式', obstacles: mazeObstacles() },
-  { name: '四柱模式', obstacles: pillarsObstacles() },
-  { name: '回廊模式', obstacles: corridorObstacles() },
-];
-
-function mazeObstacles() {
-  const obs = new Set();
-  for (let x = 4; x < 26; x++) { if (x !== 14 && x !== 15) obs.add(`${x},5`); }
-  for (let x = 4; x < 26; x++) { if (x !== 14 && x !== 15) obs.add(`${x},14`); }
-  for (let y = 2; y < 18; y++) { if (y !== 9 && y !== 10) obs.add(`9,${y}`); }
-  for (let y = 2; y < 18; y++) { if (y !== 9 && y !== 10) obs.add(`21,${y}`); }
-  return obs;
-}
-function pillarsObstacles() {
-  const obs = new Set();
-  [[4,2],[22,2],[4,14],[22,14]].forEach(([px,py]) => {
-    for (let dx = 0; dx < 3; dx++) for (let dy = 0; dy < 3; dy++) obs.add(`${px+dx},${py+dy}`);
-  });
-  return obs;
-}
-function corridorObstacles() {
-  const obs = new Set();
-  for (let x = 0; x < GW; x++) { obs.add(`${x},1`); obs.add(`${x},${GH-2}`); }
-  for (let y = 2; y < GH - 2; y++) { obs.add(`2,${y}`); obs.add(`${GW-3},${y}`); }
-  for (let x = 6; x < GW - 6; x++) { obs.add(`${x},5`); obs.add(`${x},${GH-6}`); }
-  for (let y = 6; y < GH - 6; y++) { obs.add(`6,${y}`); obs.add(`${GW-7},${y}`); }
-  const gaps = [[0,1],[14,1],[29,1],[0,18],[14,18],[29,18],[2,3],[2,9],[2,16],[27,3],[27,9],[27,16],[9,5],[20,5],[9,14],[20,14]];
-  gaps.forEach(([gx,gy]) => obs.delete(`${gx},${gy}`));
-  return obs;
-}
-
-const DIR = {
-  UP:    { x: 0, y: -1, opposite: 'DOWN' },
-  DOWN:  { x: 0, y: 1,  opposite: 'UP' },
-  LEFT:  { x: -1, y: 0, opposite: 'RIGHT' },
-  RIGHT: { x: 1, y: 0,  opposite: 'LEFT' },
-};
-
-let snake, food, score, running, paused, speedBoost, currentMap, obstacles, direction, nextDir;
-let frameAccum = 0;
-let lastTime = 0;
-
-function reset() {
-  const cx = Math.floor(GW / 2);
-  const cy = Math.floor(GH / 2);
-  snake = [{ x: cx, y: cy }, { x: cx - 1, y: cy }, { x: cx - 2, y: cy }];
-  direction = DIR.RIGHT;
-  nextDir = DIR.RIGHT;
-  score = 0;
-  running = true;
-  paused = false;
-  speedBoost = false;
-  obstacles = MAPS[currentMap].obstacles;
-  spawnFood();
-  updateUI();
-}
-
-function spawnFood() {
-  const occupied = new Set(snake.map(s => `${s.x},${s.y}`));
-  const available = [];
-  for (let x = 0; x < GW; x++) {
-    for (let y = 0; y < GH; y++) {
-      const key = `${x},${y}`;
-      if (!occupied.has(key) && !obstacles.has(key)) available.push({ x, y });
-    }
-  }
-  if (available.length > 0) {
-    food = available[Math.floor(Math.random() * available.length)];
-  } else {
-    food = null;
-    running = false;
-  }
-}
-
-function moveSnake() {
-  direction = nextDir;
-  const head = snake[0];
-  let newHead = {
-    x: (head.x + direction.x + GW) % GW,
-    y: (head.y + direction.y + GH) % GH,
-  };
-  if (snake.some(s => s.x === newHead.x && s.y === newHead.y)) { running = false; return; }
-  if (obstacles.has(`${newHead.x},${newHead.y}`)) { running = false; return; }
-  snake.unshift(newHead);
-  if (food && newHead.x === food.x && newHead.y === food.y) {
-    score += 10;
-    spawnFood();
-    if (!food) running = false;
-  } else {
-    snake.pop();
-  }
-  updateUI();
-}
-
-function gameLoop(timestamp) {
-  if (!lastTime) lastTime = timestamp;
-  const dt = timestamp - lastTime;
-  lastTime = timestamp;
-
-  let targetFps = speedBoost ? BOOST_FPS : FPS;
-  let interval = 1000 / targetFps;
-
-  if (running && !paused) {
-    frameAccum += dt;
-    while (frameAccum >= interval) {
-      frameAccum -= interval;
-      moveSnake();
-      if (!running) break;
-    }
-  }
-
-  draw();
-  requestAnimationFrame(gameLoop);
-}
-
-function draw() {
-  ctx.fillStyle = '#14141e';
-  ctx.fillRect(0, 0, W, H);
-
-  ctx.strokeStyle = '#232332';
-  ctx.lineWidth = 1;
-  for (let x = 0; x <= W; x += CELL) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, H); ctx.stroke(); }
-  for (let y = 0; y <= H; y += CELL) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke(); }
-
-  obstacles.forEach(key => {
-    const [ox, oy] = key.split(',').map(Number);
-    ctx.fillStyle = '#505064';
-    ctx.fillRect(ox * CELL + 1, oy * CELL + 1, CELL - 2, CELL - 2);
-    ctx.strokeStyle = '#78788c';
-    ctx.lineWidth = 1;
-    ctx.strokeRect(ox * CELL + 1, oy * CELL + 1, CELL - 2, CELL - 2);
-  });
-
-  if (food) {
-    const t = Date.now() / 1000;
-    const pulse = 1 + 0.15 * Math.sin(t * 4);
-    const cx = food.x * CELL + CELL / 2;
-    const cy = food.y * CELL + CELL / 2;
-    const r = (CELL / 2 - 2) * pulse;
-    ctx.fillStyle = '#dc3c3c';
-    ctx.beginPath();
-    ctx.arc(cx, cy, r, 0, Math.PI * 2);
-    ctx.fill();
-    ctx.fillStyle = '#ffb4b4';
-    ctx.beginPath();
-    ctx.arc(cx - r / 3, cy - r / 3, Math.max(2, r / 3), 0, Math.PI * 2);
-    ctx.fill();
-  }
-
-  snake.forEach((seg, i) => {
-    ctx.fillStyle = i === 0 ? '#50c850' : '#3ca03c';
-    ctx.fillRect(seg.x * CELL + 1, seg.y * CELL + 1, CELL - 2, CELL - 2);
-    ctx.strokeStyle = 'rgba(0,0,0,0.25)';
-    ctx.lineWidth = 1;
-    ctx.strokeRect(seg.x * CELL + 1, seg.y * CELL + 1, CELL - 2, CELL - 2);
-    if (i === 0) drawEyes(seg);
-  });
-
-  if (!running) drawOverlay();
-  if (paused) drawPause();
-}
-
-function drawEyes(seg) {
-  const x = seg.x * CELL;
-  const y = seg.y * CELL;
-  const es = 4;
-  const off = 5;
-  let lx, ly, rx, ry;
-  if (direction === DIR.RIGHT) {
-    lx = x + CELL - 8; ly = y + CELL / 2 - off; rx = x + CELL - 8; ry = y + off + 3;
-  } else if (direction === DIR.LEFT) {
-    lx = x + 8; ly = y + CELL / 2 - off; rx = x + 8; ry = y + off + 3;
-  } else if (direction === DIR.UP) {
-    lx = x + off; ly = y + 8; rx = x + CELL - off - 3; ry = y + 8;
-  } else {
-    lx = x + off; ly = y + CELL - 8; rx = x + CELL - off - 3; ry = y + CELL - 8;
-  }
-  [[lx,ly],[rx,ry]].forEach(([ex,ey]) => {
-    ctx.fillStyle = '#fff';
-    ctx.beginPath(); ctx.arc(ex, ey, es, 0, Math.PI * 2); ctx.fill();
-    ctx.fillStyle = '#000';
-    ctx.beginPath(); ctx.arc(ex, ey, 2, 0, Math.PI * 2); ctx.fill();
-  });
-}
-
-function drawOverlay() {
-  ctx.fillStyle = 'rgba(0,0,0,0.75)';
-  ctx.fillRect(0, 0, W, H);
-  ctx.fillStyle = '#ff5050';
-  ctx.font = 'bold 30px "Segoe UI","PingFang SC","Microsoft YaHei",sans-serif';
-  ctx.textAlign = 'center';
-  ctx.fillText('💀 游戏结束', W / 2, H / 2 - 40);
-  ctx.fillStyle = '#b4b4b4';
-  ctx.font = '16px "Segoe UI","PingFang SC","Microsoft YaHei",sans-serif';
-  ctx.fillText(`地图: ${MAPS[currentMap].name}　　最终得分: ${score}`, W / 2, H / 2);
-  ctx.fillStyle = '#969696';
-  ctx.font = '14px "Segoe UI","PingFang SC","Microsoft YaHei",sans-serif';
-  ctx.fillText('按 R 重新开始 | Tab 换地图 | ESC 退出', W / 2, H / 2 + 40);
-  ctx.textAlign = 'start';
-}
-
-function drawPause() {
-  ctx.fillStyle = 'rgba(0,0,0,0.6)';
-  ctx.fillRect(0, 0, W, H);
-  ctx.fillStyle = '#b4b4b4';
-  ctx.font = 'bold 28px "Segoe UI","PingFang SC","Microsoft YaHei",sans-serif';
-  ctx.textAlign = 'center';
-  ctx.fillText('⏸ 已暂停', W / 2, H / 2 - 10);
-  ctx.font = '14px "Segoe UI","PingFang SC","Microsoft YaHei",sans-serif';
-  ctx.fillText('按 P 继续', W / 2, H / 2 + 25);
-  ctx.textAlign = 'start';
-}
-
-function updateUI() {
-  document.getElementById('scoreDisplay').textContent = `得分: ${score}`;
-  document.getElementById('mapDisplay').textContent = `地图: ${MAPS[currentMap].name}`;
-  document.getElementById('boostDisplay').textContent = speedBoost ? '⚡ 加速中' : '';
-}
-
-document.addEventListener('keydown', e => {
-  const keyMap = {
-    ArrowUp: DIR.UP, w: DIR.UP, W: DIR.UP,
-    ArrowDown: DIR.DOWN, s: DIR.DOWN, S: DIR.DOWN,
-    ArrowLeft: DIR.LEFT, a: DIR.LEFT, A: DIR.LEFT,
-    ArrowRight: DIR.RIGHT, d: DIR.RIGHT, D: DIR.RIGHT,
-  };
-
-  if (running && !paused) {
-    // 始终以已提交的 direction 为基准检查反向，防止同帧内连续按键导致意外反向
-    if (keyMap[e.key] && keyMap[e.key] !== DIR[direction.opposite]) {
-      nextDir = keyMap[e.key];
-    }
-    if (e.key === ' ') { e.preventDefault(); speedBoost = true; updateUI(); }
-    if (e.key === 'p' || e.key === 'P') { paused = true; }
-    if (e.key === 'Tab') { e.preventDefault(); currentMap = (currentMap + 1) % MAPS.length; reset(); }
-  } else if (!running) {
-    if (e.key === 'r' || e.key === 'R') reset();
-    if (e.key === 'Tab') { e.preventDefault(); currentMap = (currentMap + 1) % MAPS.length; reset(); }
-  } else if (paused) {
-    if (e.key === 'p' || e.key === 'P') { paused = false; }
-  }
-  if (e.key === 'Escape') { window.location.reload(); }
-});
-
-document.addEventListener('keyup', e => {
-  if (e.key === ' ') { speedBoost = false; updateUI(); }
-});
-
-currentMap = 0;
-reset();
-requestAnimationFrame(gameLoop);
-</script>
 </body>
 </html>

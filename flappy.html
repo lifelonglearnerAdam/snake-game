@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>🐤 管道鸟 · Flappy Bird</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  background: #0d1a2d;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 100vh;
+  font-family: 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  flex-direction: column;
+}
+.game-wrapper { text-align: center; }
+h1 {
+  color: #f0c040;
+  font-size: 24px;
+  margin-bottom: 6px;
+  letter-spacing: 2px;
+}
+canvas {
+  border: 3px solid #2a3a5a;
+  border-radius: 6px;
+  display: block;
+  margin: 0 auto;
+}
+.info {
+  color: #b4b4b4;
+  font-size: 14px;
+  margin-top: 8px;
+}
+.hints {
+  color: #64646e;
+  font-size: 12px;
+  margin-top: 6px;
+}
+.back-link {
+  display: inline-block;
+  margin-top: 12px;
+  color: #505060;
+  text-decoration: none;
+  font-size: 13px;
+  transition: color 0.2s;
+}
+.back-link:hover { color: #f0c040; }
+</style>
+</head>
+<body>
+<div class="game-wrapper">
+  <h1>🐤 管道鸟</h1>
+  <canvas id="gameCanvas"></canvas>
+  <div class="info"><span id="scoreDisplay">得分: 0</span> | <span id="bestDisplay">最佳: 0</span></div>
+  <div class="hints">空格 / 点击 飞翔 | 躲避管道</div>
+  <a class="back-link" href="index.html">← 返回游戏大厅</a>
+</div>
+<script>
+const W = 400, H = 600;
+const canvas = document.getElementById('gameCanvas');
+canvas.width = W; canvas.height = H;
+const ctx = canvas.getContext('2d');
+
+// Game constants
+const GRAVITY = 0.45;
+const FLAP_VEL = -7.5;
+const PIPE_WIDTH = 52;
+const PIPE_GAP = 140;
+const PIPE_SPEED = 2.2;
+const PIPE_SPAWN_INTERVAL = 90; // frames
+const BIRD_X = 80;
+const BIRD_SIZE = 18;
+
+// State
+let birdY, birdVel, pipes, score, best, running, started, frameCount;
+
+function reset() {
+  birdY = H / 2;
+  birdVel = 0;
+  pipes = [];
+  score = 0;
+  running = true;
+  started = false;
+  frameCount = 0;
+  best = Math.max(best || 0, parseInt(localStorage.getItem('flappyBest') || '0'));
+  document.getElementById('bestDisplay').textContent = `最佳: ${best}`;
+  updateUI();
+}
+
+function flap() {
+  if (!running) { reset(); return; }
+  if (!started) { started = true; frameCount = PIPE_SPAWN_INTERVAL - 15; }
+  birdVel = FLAP_VEL;
+}
+
+function spawnPipe() {
+  const minY = 80, maxY = H - PIPE_GAP - 80;
+  const topH = minY + Math.random() * (maxY - minY);
+  pipes.push({ x: W, topH: topH, scored: false });
+}
+
+function update() {
+  if (!started || !running) return;
+  frameCount++;
+
+  // Bird physics
+  birdVel += GRAVITY;
+  birdY += birdVel;
+
+  // Pipe spawning
+  if (frameCount % PIPE_SPAWN_INTERVAL === 0) spawnPipe();
+
+  // Move pipes
+  for (let p of pipes) p.x -= PIPE_SPEED;
+
+  // Remove offscreen pipes
+  pipes = pipes.filter(p => p.x > -PIPE_WIDTH);
+
+  // Score
+  for (let p of pipes) {
+    if (!p.scored && p.x + PIPE_WIDTH < BIRD_X) {
+      p.scored = true;
+      score++;
+      updateUI();
+    }
+  }
+
+  // Collision detection
+  const bx = BIRD_X - BIRD_SIZE, by = birdY - BIRD_SIZE;
+  const bw = BIRD_SIZE * 2, bh = BIRD_SIZE * 2;
+
+  // Ground/ceiling
+  if (birdY + BIRD_SIZE > H - 40 || birdY - BIRD_SIZE < 0) {
+    die();
+    return;
+  }
+
+  // Pipes
+  for (let p of pipes) {
+    if (bx + bw > p.x && bx < p.x + PIPE_WIDTH) {
+      if (by < p.topH || by + bh > p.topH + PIPE_GAP) {
+        die();
+        return;
+      }
+    }
+  }
+}
+
+function die() {
+  running = false;
+  if (score > best) {
+    best = score;
+    localStorage.setItem('flappyBest', best);
+    document.getElementById('bestDisplay').textContent = `最佳: ${best}`;
+  }
+}
+
+function draw() {
+  // Sky gradient
+  const sky = ctx.createLinearGradient(0, 0, 0, H);
+  sky.addColorStop(0, '#4ec0e8');
+  sky.addColorStop(0.7, '#7dd8f0');
+  sky.addColorStop(1, '#c8e8c0');
+  ctx.fillStyle = sky;
+  ctx.fillRect(0, 0, W, H);
+
+  // Clouds
+  ctx.fillStyle = 'rgba(255,255,255,0.6)';
+  drawCloud(60, 80, 1);
+  drawCloud(200, 50, 0.7);
+  drawCloud(320, 100, 0.8);
+
+  // Pipes
+  for (let p of pipes) {
+    const px = p.x;
+    // Top pipe
+    ctx.fillStyle = '#4a8c3f';
+    ctx.fillRect(px, 0, PIPE_WIDTH, p.topH);
+    ctx.fillStyle = '#5ca84a';
+    ctx.fillRect(px - 3, p.topH - 26, PIPE_WIDTH + 6, 26);
+    // Pipe lip top
+    ctx.fillStyle = '#3d7235';
+    ctx.fillRect(px - 3, p.topH - 26, PIPE_WIDTH + 6, 6);
+
+    // Bottom pipe
+    const botY = p.topH + PIPE_GAP;
+    ctx.fillStyle = '#5ca84a';
+    ctx.fillRect(px - 3, botY, PIPE_WIDTH + 6, 26);
+    ctx.fillStyle = '#3d7235';
+    ctx.fillRect(px - 3, botY + 20, PIPE_WIDTH + 6, 6);
+    ctx.fillStyle = '#4a8c3f';
+    ctx.fillRect(px, botY + 26, PIPE_WIDTH, H - botY - 26);
+  }
+
+  // Ground
+  ctx.fillStyle = '#d4a860';
+  ctx.fillRect(0, H - 40, W, 40);
+  ctx.fillStyle = '#7a5c30';
+  ctx.fillRect(0, H - 40, W, 4);
+  // Grass tufts
+  ctx.fillStyle = '#6aaa40';
+  for (let i = 0; i < W; i += 18) {
+    ctx.beginPath();
+    ctx.moveTo(i, H - 40);
+    ctx.lineTo(i + 6, H - 50);
+    ctx.lineTo(i + 12, H - 40);
+    ctx.fill();
+  }
+
+  // Bird
+  const bx = BIRD_X, by = birdY;
+  ctx.save();
+  ctx.translate(bx, by);
+  // Rotation based on velocity
+  const angle = Math.min(Math.max(birdVel * 0.08, -0.5), 0.8);
+  ctx.rotate(angle);
+
+  // Body
+  ctx.fillStyle = '#f5d442';
+  ctx.beginPath();
+  ctx.arc(0, 0, BIRD_SIZE, 0, Math.PI * 2);
+  ctx.fill();
+  // Belly
+  ctx.fillStyle = '#fae89b';
+  ctx.beginPath();
+  ctx.arc(-3, 4, BIRD_SIZE * 0.6, 0, Math.PI * 2);
+  ctx.fill();
+  // Eye
+  ctx.fillStyle = '#fff';
+  ctx.beginPath();
+  ctx.arc(8, -4, 6, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = '#111';
+  ctx.beginPath();
+  ctx.arc(10, -4, 3, 0, Math.PI * 2);
+  ctx.fill();
+  // Beak
+  ctx.fillStyle = '#f08030';
+  ctx.beginPath();
+  ctx.moveTo(16, 0);
+  ctx.lineTo(24, 2);
+  ctx.lineTo(16, 6);
+  ctx.closePath();
+  ctx.fill();
+  // Wing
+  ctx.fillStyle = '#e0b830';
+  ctx.beginPath();
+  ctx.ellipse(-5, 2, 8, 5, -0.3, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.restore();
+
+  // Start / Game Over overlay
+  if (!started && running) {
+    ctx.fillStyle = 'rgba(0,0,0,0.4)';
+    ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = '#fff';
+    ctx.font = 'bold 28px "Segoe UI","PingFang SC","Microsoft YaHei",sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('点击或按空格起飞', W / 2, H / 2 - 20);
+    ctx.font = '15px "Segoe UI","PingFang SC","Microsoft YaHei",sans-serif';
+    ctx.fillText('躲开管道，飞得越远越好！', W / 2, H / 2 + 20);
+    ctx.textAlign = 'start';
+  }
+
+  if (!running) {
+    ctx.fillStyle = 'rgba(0,0,0,0.65)';
+    ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = '#ff6060';
+    ctx.font = 'bold 28px "Segoe UI","PingFang SC","Microsoft YaHei",sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('游戏结束', W / 2, H / 2 - 30);
+    ctx.fillStyle = '#fff';
+    ctx.font = '16px "Segoe UI","PingFang SC","Microsoft YaHei",sans-serif';
+    ctx.fillText(`得分: ${score}    最佳: ${best}`, W / 2, H / 2 + 10);
+    ctx.fillStyle = '#ccc';
+    ctx.font = '14px "Segoe UI","PingFang SC","Microsoft YaHei",sans-serif';
+    ctx.fillText('点击或按空格重新开始', W / 2, H / 2 + 40);
+    ctx.textAlign = 'start';
+  }
+}
+
+function drawCloud(x, y, scale) {
+  ctx.save();
+  ctx.translate(x, y);
+  ctx.scale(scale, scale);
+  ctx.beginPath();
+  ctx.arc(0, 0, 25, 0, Math.PI * 2);
+  ctx.arc(30, -8, 20, 0, Math.PI * 2);
+  ctx.arc(25, 10, 18, 0, Math.PI * 2);
+  ctx.arc(-10, 5, 22, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+}
+
+function drawScore() {
+  if (!started) return;
+  ctx.fillStyle = '#fff';
+  ctx.strokeStyle = '#333';
+  ctx.lineWidth = 2;
+  ctx.font = 'bold 48px "Segoe UI","PingFang SC","Microsoft YaHei",sans-serif';
+  ctx.textAlign = 'center';
+  ctx.strokeText(score, W / 2, 70);
+  ctx.fillText(score, W / 2, 70);
+  ctx.textAlign = 'start';
+}
+
+function updateUI() {
+  document.getElementById('scoreDisplay').textContent = `得分: ${score}`;
+}
+
+function gameLoop() {
+  update();
+  draw();
+  drawScore();
+  requestAnimationFrame(gameLoop);
+}
+
+// Controls
+canvas.addEventListener('click', e => { e.preventDefault(); flap(); });
+document.addEventListener('keydown', e => {
+  if (e.key === ' ' || e.key === 'ArrowUp') { e.preventDefault(); flap(); }
+});
+
+reset();
+gameLoop();
+</script>
+</body>
+</html>
