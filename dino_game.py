@@ -1,14 +1,18 @@
 """
 小恐龙跑酷 (Dino Runner) - Python + Pygame
 躲避障碍物，跑得越远分数越高！
+
+Fixed: delta-time game loop so speed is consistent
+across different refresh rates / hardware.
 """
 import pygame
 import random
 import sys
 
-# Constants
+# Constants (tuned for 60 fps baseline)
 W, H = 700, 300
 FPS = 60
+FRAME_MS = 1000 / 60   # ms per frame at 60 fps
 GROUND_Y = 240
 GRAVITY = 0.7
 JUMP_VEL = -12
@@ -36,10 +40,11 @@ class Dino:
     def duck(self, is_down):
         self.ducking = is_down and self.on_ground
 
-    def update(self):
+    def update(self, delta):
+        """delta: frame-time multiplier (1.0 = 60 fps)"""
         if not self.on_ground:
-            self.vel += GRAVITY
-            self.y += self.vel
+            self.vel += GRAVITY * delta
+            self.y   += self.vel  * delta
             if self.y >= GROUND_Y:
                 self.y = GROUND_Y
                 self.vel = 0
@@ -71,7 +76,7 @@ class Dino:
         pygame.draw.rect(surface, DINO_COLOR, (x + 30, top + 10, 8, 2))
         # Legs
         if self.on_ground:
-            phase = (frame_count // 4) % 2
+            phase = int(frame_count // 4) % 2
             pygame.draw.rect(surface, DINO_COLOR, (x + 10, top + 32, 6, 12))
             pygame.draw.rect(surface, DINO_COLOR, (x + 18, top + 32, 6, 8 if phase else 12))
             pygame.draw.rect(surface, DINO_COLOR, (x + 24, top + 32, 4, 12 if phase else 8))
@@ -94,8 +99,8 @@ class Dino:
 
 
 class Obstacle:
-    def __init__(self, x, speed):
-        self.x = x
+    def __init__(self, x):
+        self.x = float(x)
         r = random.random()
         if r < 0.65:
             # Cactus
@@ -113,8 +118,8 @@ class Obstacle:
             self.y = GROUND_Y - 35 - random.randint(0, 40)
             self.seed = 0
 
-    def update(self, speed):
-        self.x -= speed
+    def update(self, speed, delta):
+        self.x -= speed * delta
 
     def offscreen(self):
         return self.x < -50
@@ -144,7 +149,7 @@ class Obstacle:
 
     def _draw_bird(self, surface, frame_count):
         x, y = int(self.x), int(self.y)
-        phase = (frame_count // 6) % 2
+        phase = int(frame_count // 6) % 2
         pygame.draw.rect(surface, DINO_COLOR, (x, y + 6, 30, 8))
         pygame.draw.rect(surface, DINO_COLOR, (x + 24, y + 4, 8, 4))
         if phase == 0:
@@ -161,7 +166,6 @@ class Game:
         self.clock = pygame.time.Clock()
         self.font = pygame.font.Font(None, 28)
         self.font_score = pygame.font.Font(None, 20)
-        pygame.font.Font(None, 22)
         self.reset()
 
     def reset(self):
@@ -172,29 +176,34 @@ class Game:
         self.running = True
         self.started = False
         self.speed = 5
-        self.frame = 0
+        self.frame = 0.0       # float — incremented by delta
+        self.spawn_timer = 0.0
 
-    def update(self):
+    def update(self, delta):
+        """delta: frame-time multiplier (1.0 = 60 fps)"""
         if not self.running or not self.started:
             return
-        self.frame += 1
+
+        self.frame += delta
 
         # Increase speed
         self.speed = min(14, 5 + (self.score // 300) * 0.8)
 
-        self.dino.update()
+        self.dino.update(delta)
 
-        # Spawn obstacles
+        # Spawn obstacles (timer-based)
+        self.spawn_timer += delta
         spawn_gap = max(40, int(110 - self.score / 30))
-        if self.frame % spawn_gap == 0:
-            self.obstacles.append(Obstacle(W, self.speed))
+        while self.spawn_timer >= spawn_gap:
+            self.spawn_timer -= spawn_gap
+            self.obstacles.append(Obstacle(W))
 
         # Update obstacles
         for o in self.obstacles:
-            o.update(self.speed)
+            o.update(self.speed, delta)
         self.obstacles = [o for o in self.obstacles if not o.offscreen()]
 
-        self.score += 1
+        self.score = int(self.score + delta)
 
         # Collision
         dino_rect = self.dino.rect
@@ -214,7 +223,7 @@ class Game:
         # Ground line
         pygame.draw.line(self.screen, GROUND_LINE, (0, GROUND_Y), (W, GROUND_Y))
         # Ground dots
-        dot_offset = (self.frame * int(self.speed)) % 20
+        dot_offset = (int(self.frame) * int(self.speed)) % 20
         for x in range(-dot_offset, W, 20):
             pygame.draw.rect(self.screen, (170, 170, 170), (x, GROUND_Y + 8, 3, 3))
 
@@ -242,7 +251,7 @@ class Game:
             overlay.fill(BG)
             self.screen.blit(overlay, (0, 0))
             txt = self.font.render("按空格键或 ↑ 开始游戏", True, TEXT_COLOR)
-            self.screen.blit(txt, txt.get_rect(center=(W//2, H//2 - 10)))
+            self.screen.blit(txt, txt.get_rect(center=(W // 2, H // 2 - 10)))
 
         # Game over
         if not self.running:
@@ -251,15 +260,15 @@ class Game:
             overlay.fill(BG)
             self.screen.blit(overlay, (0, 0))
             txt = self.font.render("游戏结束", True, TEXT_COLOR)
-            self.screen.blit(txt, txt.get_rect(center=(W//2, H//2 - 30)))
+            self.screen.blit(txt, txt.get_rect(center=(W // 2, H // 2 - 30)))
             txt2 = pygame.font.Font(None, 18).render(
                 f"得分: {self.score // 10}    最佳: {self.best // 10}", True, TEXT_COLOR
             )
-            self.screen.blit(txt2, txt2.get_rect(center=(W//2, H//2 + 5)))
+            self.screen.blit(txt2, txt2.get_rect(center=(W // 2, H // 2 + 5)))
             txt3 = pygame.font.Font(None, 16).render(
                 "按空格或 ↑ 重新开始", True, (150, 150, 150)
             )
-            self.screen.blit(txt3, txt3.get_rect(center=(W//2, H//2 + 32)))
+            self.screen.blit(txt3, txt3.get_rect(center=(W // 2, H // 2 + 32)))
 
         pygame.display.flip()
 
@@ -293,9 +302,17 @@ class Game:
     def run(self):
         while True:
             self.handle_events()
-            self.update()
+
+            # delta time: 1.0 = 60 fps, independent of actual frame-rate
+            elapsed_ms = self.clock.tick(FPS)
+            delta = elapsed_ms / FRAME_MS
+
+            # clamp to avoid spiral-of-death after a lag spike
+            if delta > 3:
+                delta = 3
+
+            self.update(delta)
             self.draw()
-            self.clock.tick(FPS)
 
 
 if __name__ == "__main__":

@@ -16,6 +16,8 @@ body {
   flex-direction: column;
   touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
+  user-select: none;
+  -webkit-user-select: none;
 }
 .game-wrapper { text-align: center; }
 h1 {
@@ -112,28 +114,33 @@ const canvas = document.getElementById('gameCanvas');
 canvas.width = W; canvas.height = H;
 const ctx = canvas.getContext('2d');
 
-// Constants
+// —— Constants tuned for 60 fps baseline ——
 const GROUND_Y = 240;
-const GRAVITY = 0.7;
-const JUMP_VEL = -12;
+const GRAVITY   = 0.7;
+const JUMP_VEL  = -12;
+const FRAME_MS  = 1000 / 60;   // one frame at 60 fps (≈16.67 ms)
 
-// State
+// —— Game state ——
 let dinoY, dinoVel, onGround, obstacles, score, best, running, started;
-let gameSpeed, frameCount;
-let ducking = false;
+let gameSpeed, frameCount, spawnTimer;
+let ducking    = false;
 let touchTimer = null;
+let lastTime   = 0;              // previous rAF timestamp (delta-time)
 
 function reset() {
-  dinoY = GROUND_Y;
-  dinoVel = 0;
-  onGround = true;
-  obstacles = [];
-  score = 0;
-  running = true;
-  started = false;
-  gameSpeed = 5;
+  dinoY      = GROUND_Y;
+  dinoVel    = 0;
+  onGround   = true;
+  obstacles  = [];
+  score      = 0;
+  running    = true;
+  started    = false;
+  gameSpeed  = 5;
   frameCount = 0;
-  ducking = false;
+  spawnTimer = 0;
+  ducking    = false;
+  lastTime   = 0;
+  if (touchTimer) { clearTimeout(touchTimer); touchTimer = null; }
   best = Math.max(best || 0, parseInt(localStorage.getItem('dinoBest') || '0'));
   document.getElementById('bestDisplay').textContent = `最佳: ${best}`;
   updateUI();
@@ -143,9 +150,9 @@ function jump() {
   if (!running) { reset(); return; }
   if (!started) { started = true; }
   if (onGround) {
-    dinoVel = JUMP_VEL;
-    onGround = false;
-    ducking = false;
+    dinoVel   = JUMP_VEL;
+    onGround  = false;
+    ducking   = false;
   }
 }
 
@@ -157,48 +164,56 @@ function duck(isDown) {
 function spawnObstacle() {
   const r = Math.random();
   if (r < 0.65) {
-    // Cactus
+    // cactus
     const h = 25 + Math.random() * 20;
     obstacles.push({ x: W, type: 'cactus', w: 16, h: h });
   } else {
-    // Pterodactyl
+    // pterodactyl
     const y = GROUND_Y - 35 - Math.random() * 40;
     obstacles.push({ x: W, type: 'bird', w: 30, h: 20, y: y });
   }
 }
 
-function update() {
-  if (!running || !started) return;
-  frameCount++;
+/* ── core update — everything scaled by delta ──────────── */
 
-  // Speed increase
+function update(delta) {
+  if (!running || !started) return;
+
+  // frameCount drives *animation* only (legs / wings)
+  frameCount += delta;
+
+  // speed climbs with score (unchanged formula)
   gameSpeed = 5 + Math.floor(score / 300) * 0.8;
   if (gameSpeed > 14) gameSpeed = 14;
 
-  // Dino physics
+  // ── physics (delta-scaled) ──
   if (!onGround) {
-    dinoVel += GRAVITY;
-    dinoY += dinoVel;
+    dinoVel += GRAVITY * delta;
+    dinoY   += dinoVel  * delta;
     if (dinoY >= GROUND_Y) {
-      dinoY = GROUND_Y;
-      dinoVel = 0;
+      dinoY    = GROUND_Y;
+      dinoVel  = 0;
       onGround = true;
     }
   }
 
-  // Spawn obstacles
+  // ── spawning (timer-based, immune to frame-rate) ──
+  spawnTimer += delta;
   const spawnGap = Math.max(40, 110 - score / 30);
-  if (frameCount % Math.floor(spawnGap) === 0) spawnObstacle();
+  while (spawnTimer >= spawnGap) {
+    spawnTimer -= spawnGap;
+    spawnObstacle();
+  }
 
-  // Move obstacles
-  for (let o of obstacles) o.x -= gameSpeed;
+  // ── move obstacles (delta-scaled) ──
+  for (let o of obstacles) o.x -= gameSpeed * delta;
   obstacles = obstacles.filter(o => o.x > -50);
 
-  // Score
-  score++;
-  if (score % 100 === 0) updateUI();
+  // ── score (distance, not frame-count) ──
+  score += delta;
+  if (Math.floor(score) % 100 === 0) updateUI();
 
-  // Collision detection
+  // ── collision ──
   const dBBox = {
     x: 50,
     y: dinoY - (ducking ? 30 : 44),
@@ -221,6 +236,8 @@ function update() {
   }
 }
 
+/* ── death ─────────────────────────────────────────────── */
+
 function die() {
   running = false;
   if (score > best) {
@@ -231,12 +248,14 @@ function die() {
   updateUI();
 }
 
+/* ── drawing ───────────────────────────────────────────── */
+
 function draw() {
-  // Background
+  // background
   ctx.fillStyle = '#f7f7f7';
   ctx.fillRect(0, 0, W, H);
 
-  // Ground line
+  // ground line
   ctx.strokeStyle = '#535353';
   ctx.lineWidth = 1;
   ctx.beginPath();
@@ -244,14 +263,14 @@ function draw() {
   ctx.lineTo(W, GROUND_Y);
   ctx.stroke();
 
-  // Ground dots (scrolling)
+  // scrolling ground dots
   const dotOffset = (frameCount * gameSpeed) % 20;
   ctx.fillStyle = '#aaa';
   for (let x = -dotOffset; x < W; x += 20) {
     ctx.fillRect(x, GROUND_Y + 8, 3, 3);
   }
 
-  // Obstacles
+  // obstacles
   for (let o of obstacles) {
     if (o.type === 'cactus') {
       drawCactus(o.x, GROUND_Y - o.h, o.h);
@@ -260,32 +279,32 @@ function draw() {
     }
   }
 
-  // Dino
+  // dino
   if (ducking && onGround) {
     drawDinoDuck(50, dinoY);
   } else {
     drawDino(50, dinoY, onGround);
   }
 
-  // Score display
+  // score
   ctx.fillStyle = '#535353';
   ctx.font = 'bold 18px "Courier New", monospace';
   ctx.textAlign = 'right';
   ctx.fillText(Math.floor(score / 10).toString().padStart(5, '0'), W - 20, 30);
   ctx.textAlign = 'start';
 
-  // Start overlay
+  // start overlay
   if (!started && running) {
     ctx.fillStyle = 'rgba(255,255,255,0.5)';
     ctx.fillRect(0, 0, W, H);
     ctx.fillStyle = '#535353';
     ctx.font = 'bold 22px "Segoe UI","PingFang SC","Microsoft YaHei",sans-serif';
     ctx.textAlign = 'center';
-    ctx.fillText('点击屏幕 或 按空格键 开始', W / 2, H / 2 - 10);
+    ctx.fillText('按空格键或 ↑ 开始游戏', W / 2, H / 2 - 10);
     ctx.textAlign = 'start';
   }
 
-  // Game over
+  // game over
   if (!running) {
     ctx.fillStyle = 'rgba(255,255,255,0.7)';
     ctx.fillRect(0, 0, W, H);
@@ -298,26 +317,24 @@ function draw() {
     ctx.fillText(`得分: ${Math.floor(score / 10)}    最佳: ${Math.floor(best / 10)}`, W / 2, H / 2 + 5);
     ctx.fillStyle = '#999';
     ctx.font = '13px "Segoe UI","PingFang SC","Microsoft YaHei",sans-serif';
-    ctx.fillText('点击屏幕 或 按空格 重新开始', W / 2, H / 2 + 35);
+    ctx.fillText('按空格或 ↑ 重新开始', W / 2, H / 2 + 35);
     ctx.textAlign = 'start';
   }
 }
 
+/* ── dino drawing ──────────────────────────────────────── */
+
 function drawDino(x, y, onGround) {
   const top = y - 44;
   ctx.fillStyle = '#535353';
-  // Body
-  ctx.fillRect(x + 10, top + 8, 18, 24);
-  // Head
-  ctx.fillRect(x + 18, top, 16, 14);
-  // Eye
+  ctx.fillRect(x + 10, top + 8, 18, 24);          // body
+  ctx.fillRect(x + 18, top, 16, 14);               // head
   ctx.fillStyle = '#fff';
-  ctx.fillRect(x + 26, top + 4, 4, 4);
+  ctx.fillRect(x + 26, top + 4, 4, 4);             // eye white
   ctx.fillStyle = '#535353';
-  ctx.fillRect(x + 28, top + 5, 2, 2);
-  // Mouth
-  ctx.fillRect(x + 30, top + 10, 8, 2);
-  // Legs
+  ctx.fillRect(x + 28, top + 5, 2, 2);             // pupil
+  ctx.fillRect(x + 30, top + 10, 8, 2);            // mouth
+  // legs
   if (onGround) {
     const legPhase = Math.floor(frameCount / 4) % 2;
     ctx.fillRect(x + 10, top + 32, 6, 12);
@@ -327,33 +344,26 @@ function drawDino(x, y, onGround) {
     ctx.fillRect(x + 14, top + 32, 4, 8);
     ctx.fillRect(x + 20, top + 28, 4, 8);
   }
-  // Arm
-  ctx.fillRect(x + 6, top + 14, 6, 3);
-  // Tail
-  ctx.fillRect(x, top + 12, 12, 4);
+  ctx.fillRect(x + 6, top + 14, 6, 3);             // arm
+  ctx.fillRect(x, top + 12, 12, 4);                 // tail
   ctx.fillRect(x - 2, top + 10, 4, 2);
 }
 
 function drawDinoDuck(x, y) {
   const top = y - 30;
   ctx.fillStyle = '#535353';
-  // Flat body
-  ctx.fillRect(x, top, 44, 16);
-  // Eye
+  ctx.fillRect(x, top, 44, 16);                     // flat body
   ctx.fillStyle = '#fff';
-  ctx.fillRect(x + 32, top + 4, 4, 4);
+  ctx.fillRect(x + 32, top + 4, 4, 4);              // eye
   ctx.fillStyle = '#535353';
-  ctx.fillRect(x + 34, top + 5, 2, 2);
-  // Legs
-  ctx.fillRect(x + 8, top + 16, 6, 10);
+  ctx.fillRect(x + 34, top + 5, 2, 2);              // pupil
+  ctx.fillRect(x + 8, top + 16, 6, 10);             // legs
   ctx.fillRect(x + 30, top + 16, 6, 10);
 }
 
 function drawCactus(x, y, h) {
   ctx.fillStyle = '#535353';
-  // Main stem
-  ctx.fillRect(x + 4, y + 4, 8, h - 4);
-  // Arms
+  ctx.fillRect(x + 4, y + 4, 8, h - 4);             // stem
   const seed = Math.floor(x);
   if (seed % 3 === 0) {
     ctx.fillRect(x + 12, y + h * 0.3, 6, 4);
@@ -363,18 +373,18 @@ function drawCactus(x, y, h) {
     ctx.fillRect(x - 6, y + h * 0.5, 6, 4);
     ctx.fillRect(x - 6, y + h * 0.5 - 8, 4, 8);
   }
-  ctx.fillRect(x + 4, y, 8, 4);
+  ctx.fillRect(x + 4, y, 8, 4);                     // top
 }
 
 function drawBird(x, y) {
   ctx.fillStyle = '#535353';
   const wingPhase = Math.floor(frameCount / 6) % 2;
-  ctx.fillRect(x, y + 6, 30, 8);
-  ctx.fillRect(x + 24, y + 4, 8, 4);
+  ctx.fillRect(x, y + 6, 30, 8);                    // body
+  ctx.fillRect(x + 24, y + 4, 8, 4);                // beak
   if (wingPhase === 0) {
-    ctx.fillRect(x + 10, y, 10, 8);
+    ctx.fillRect(x + 10, y, 10, 8);                 // wings up
   } else {
-    ctx.fillRect(x + 10, y + 12, 10, 8);
+    ctx.fillRect(x + 10, y + 12, 10, 8);            // wings down
   }
 }
 
@@ -382,51 +392,63 @@ function updateUI() {
   document.getElementById('scoreDisplay').textContent = `得分: ${Math.floor(score / 10)}`;
 }
 
-function gameLoop() {
-  update();
+/* ── delta-time game loop ─────────────────────────────── */
+
+function gameLoop(timestamp) {
+  if (lastTime === 0) lastTime = timestamp;
+  let delta = (timestamp - lastTime) / FRAME_MS;
+  lastTime = timestamp;
+
+  // clamp — prevents the game from "teleporting" after the
+  // tab was backgrounded / device went to sleep.
+  if (delta > 3) delta = 3;
+
+  update(delta);
   draw();
   requestAnimationFrame(gameLoop);
 }
 
-// ===== 键盘控制 =====
+/* ── controls ──────────────────────────────────────────── */
+
+// keyboard
 document.addEventListener('keydown', e => {
-  if (e.key === ' ' || e.key === 'ArrowUp') { e.preventDefault(); jump(); }
-  if (e.key === 'ArrowDown') { e.preventDefault(); duck(true); }
+  if (e.key === ' ' || e.key === 'ArrowUp')    { e.preventDefault(); jump(); }
+  if (e.key === 'ArrowDown')                   { e.preventDefault(); duck(true); }
 });
 document.addEventListener('keyup', e => {
-  if (e.key === 'ArrowDown') { e.preventDefault(); duck(false); }
+  if (e.key === 'ArrowDown')                   { e.preventDefault(); duck(false); }
 });
 
-// ===== 触屏 + 点击控制（手机兼容） =====
-// 短按/点击 → 跳跃，长按 → 蹲下
+// mouse click
 canvas.addEventListener('click', e => { e.preventDefault(); jump(); });
-document.addEventListener('click', e => { jump(); });
-document.addEventListener('touchstart', e => {
+
+// touch — short tap = jump, long press = duck (mobile compatible)
+canvas.addEventListener('touchstart', e => {
   e.preventDefault();
   if (!running) { jump(); return; }
   if (!started) { jump(); return; }
-  // 按住超过 200ms 触发蹲下
   touchTimer = setTimeout(() => { duck(true); }, 200);
 }, { passive: false });
-document.addEventListener('touchend', e => {
+canvas.addEventListener('touchend', e => {
   e.preventDefault();
   if (touchTimer) {
     clearTimeout(touchTimer);
     touchTimer = null;
-    // 短按（未触发蹲下）→ 跳跃
     if (!ducking) jump();
   }
   duck(false);
 }, { passive: false });
-document.addEventListener('touchcancel', e => {
+canvas.addEventListener('touchcancel', e => {
   if (touchTimer) { clearTimeout(touchTimer); touchTimer = null; }
   duck(false);
 });
 
-reset();
-gameLoop();
+/* ── boot ──────────────────────────────────────────────── */
 
-// 自动检测平台显示对应操作说明
+reset();
+requestAnimationFrame(gameLoop);
+
+// auto-detect platform to show relevant control hints
 (function() {
   const isMobile = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
   document.querySelector('.desktop-hints').style.display = isMobile ? 'none' : 'block';
