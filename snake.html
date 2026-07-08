@@ -197,6 +197,7 @@ canvas {
       <div class="ctrl-row"><span class="ctrl-key">P</span><span class="ctrl-action">暂停 / 继续</span></div>
       <div class="ctrl-row"><span class="ctrl-key">Tab</span><span class="ctrl-action">切换地图</span></div>
       <div class="ctrl-row"><span class="ctrl-key">R</span><span class="ctrl-action">重新开始</span></div>
+      <div class="ctrl-row"><span class="ctrl-key">1-5</span><span class="ctrl-key">[</span><span class="ctrl-key">]</span><span class="ctrl-action">调速 0.3x ~ 1.3x</span></div>
     </div>
     <div class="mobile-hints">
       <div class="ctrl-row"><span class="ctrl-key">🕹️ 方向键</span><span class="ctrl-action">下方虚拟按键控制方向</span></div>
@@ -227,6 +228,9 @@ canvas {
       <div></div>
     </div>
     <div class="dpad-actions">
+      <button class="dpad-action-btn" id="btnSlower">⏪ 减速</button>
+      <span class="ctrl-action" id="speedLabel" style="color:#ffc832;font-weight:bold;align-self:center;">1.0x</span>
+      <button class="dpad-action-btn" id="btnFaster">加速 ⏩</button>
       <button class="dpad-action-btn" id="btnMap">🔄 换地图</button>
       <button class="dpad-action-btn" id="btnRestart">🔁 重来</button>
     </div>
@@ -279,13 +283,13 @@ function corridorObs() {
 }
 function crossObs() {
   const o = new Set();
-  // 竖线 x=14,15，中间留口 y=8~11
+  // 竖线 x=14,15，中间留大口 y=6~13
   for (let y = 1; y < GH - 1; y++) {
-    if (y < 8 || y > 11) { o.add(`14,${y}`); o.add(`15,${y}`); }
+    if (y < 6 || y > 13) { o.add(`14,${y}`); o.add(`15,${y}`); }
   }
-  // 横线 y=9,10，中间留口 x=13~16
+  // 横线 y=9,10，中间留大口 x=11~18
   for (let x = 0; x < GW; x++) {
-    if (x < 13 || x > 16) { o.add(`${x},9`); o.add(`${x},10`); }
+    if (x < 11 || x > 18) { o.add(`${x},9`); o.add(`${x},10`); }
   }
   return o;
 }
@@ -320,12 +324,13 @@ function tunnelObs() {
 }
 function scatterObs() {
   const o = new Set();
+  // 稀疏散点，避开中央出生区域 (12-18, 8-12)
   const blocks = [
-    [2,3],[5,2],[8,4],[12,3],[15,2],[20,5],[25,3],[27,4],
-    [3,7],[7,6],[10,8],[14,7],[18,6],[22,8],[26,7],
-    [5,11],[9,10],[13,12],[16,10],[21,11],[25,12],
-    [2,15],[6,14],[11,16],[15,15],[19,14],[23,16],[27,15],
-    [4,17],[8,16],[13,17],[17,16],[22,17],[26,16]
+    [2,3],[5,2],[8,4],[20,4],[25,3],[27,4],
+    [3,7],[7,6],[10,8],[18,6],[22,8],[26,7],
+    [5,15],[9,14],[21,14],[25,13],
+    [2,15],[6,16],[11,17],[17,16],
+    [4,17],[8,16],[22,17],[26,16]
   ];
   blocks.forEach(([x,y]) => {
     if (x > 1 && x < GW-2 && y > 1 && y < GH-2) o.add(`${x},${y}`);
@@ -340,6 +345,9 @@ const DIR = {
   RIGHT: { x: 1, y: 0, opposite: 'LEFT' },
 };
 
+const SPEEDS = [0.3, 0.5, 0.7, 1.0, 1.3];
+let speedIdx = 3; // 默认 1.0x
+let speedMultiplier = SPEEDS[speedIdx];
 let snake, food, score, running, paused, speedBoost, currentMap, obstacles, direction, nextDir;
 let frameAccum = 0, lastTime = 0;
 
@@ -379,7 +387,7 @@ function moveSnake() {
 function gameLoop(ts) {
   if (!lastTime) lastTime = ts;
   const dt = ts - lastTime; lastTime = ts;
-  const interval = 1000 / (speedBoost ? BOOST_FPS : FPS);
+  const interval = 1000 / ((speedBoost ? BOOST_FPS : FPS) * speedMultiplier);
   if (running && !paused) {
     frameAccum += dt;
     while (frameAccum >= interval) { frameAccum -= interval; moveSnake(); if (!running) break; }
@@ -450,7 +458,17 @@ function drawPause() {
 function updateUI() {
   document.getElementById('scoreDisplay').textContent = `得分: ${score}`;
   document.getElementById('mapDisplay').textContent = `地图: ${MAPS[currentMap].name}`;
-  document.getElementById('boostDisplay').textContent = speedBoost ? '加速中' : '';
+  const spdLabel = speedMultiplier === 1.0 ? '' : ` ${speedMultiplier}x`;
+  document.getElementById('boostDisplay').textContent = (speedBoost ? '加速中' : '') + spdLabel;
+}
+
+function changeSpeed(up) {
+  speedIdx = up ? Math.min(speedIdx + 1, SPEEDS.length - 1) : Math.max(speedIdx - 1, 0);
+  speedMultiplier = SPEEDS[speedIdx];
+  updateUI();
+  // 同步手机端的调速标签
+  const lbl = document.getElementById('speedLabel');
+  if (lbl) lbl.textContent = speedMultiplier.toFixed(1) + 'x';
 }
 
 // ===== 手机虚拟方向键按钮控制 =====
@@ -530,6 +548,24 @@ function setupDpad() {
     if (!running) reset();
     else reset();
   });
+
+  // 调速按钮
+  function updateSpeedLabel() {
+    document.getElementById('speedLabel').textContent = speedMultiplier.toFixed(1) + 'x';
+  }
+  updateSpeedLabel();
+  document.getElementById('btnSlower').addEventListener('click', e => {
+    e.preventDefault(); changeSpeed(false); updateSpeedLabel();
+  });
+  document.getElementById('btnSlower').addEventListener('touchstart', e => {
+    e.preventDefault(); changeSpeed(false); updateSpeedLabel();
+  });
+  document.getElementById('btnFaster').addEventListener('click', e => {
+    e.preventDefault(); changeSpeed(true); updateSpeedLabel();
+  });
+  document.getElementById('btnFaster').addEventListener('touchstart', e => {
+    e.preventDefault(); changeSpeed(true); updateSpeedLabel();
+  });
 }
 
 document.addEventListener('keydown', e => {
@@ -539,6 +575,11 @@ document.addEventListener('keydown', e => {
     ArrowLeft: DIR.LEFT, a: DIR.LEFT, A: DIR.LEFT,
     ArrowRight: DIR.RIGHT, d: DIR.RIGHT, D: DIR.RIGHT,
   };
+  // 按键调速
+  if (e.key >= '1' && e.key <= '5') { speedIdx = parseInt(e.key) - 1; speedMultiplier = SPEEDS[speedIdx]; updateUI(); }
+  if (e.key === '[') { changeSpeed(false); }
+  if (e.key === ']') { changeSpeed(true); }
+
   if (running && !paused) {
     if (keyMap[e.key] && keyMap[e.key] !== DIR[direction.opposite]) nextDir = keyMap[e.key];
     if (e.key === ' ') { e.preventDefault(); speedBoost = true; updateUI(); }
