@@ -246,6 +246,10 @@ const MAPS = [
   { name: '迷宫模式', obstacles: mazeObs() },
   { name: '四柱模式', obstacles: pillarsObs() },
   { name: '回廊模式', obstacles: corridorObs() },
+  { name: '十字封锁', obstacles: crossObs() },
+  { name: '棋盘模式', obstacles: checkerObs() },
+  { name: '隧道模式', obstacles: tunnelObs() },
+  { name: '散点模式', obstacles: scatterObs() },
 ];
 
 function mazeObs() {
@@ -271,6 +275,61 @@ function corridorObs() {
   for (let y = 6; y < GH - 6; y++) { o.add(`6,${y}`); o.add(`${GW-7},${y}`); }
   const gaps = [[0,1],[14,1],[29,1],[0,18],[14,18],[29,18],[2,3],[2,9],[2,16],[27,3],[27,9],[27,16],[9,5],[20,5],[9,14],[20,14]];
   gaps.forEach(([gx,gy]) => o.delete(`${gx},${gy}`));
+  return o;
+}
+function crossObs() {
+  const o = new Set();
+  // 竖线 x=14,15，中间留口 y=8~11
+  for (let y = 1; y < GH - 1; y++) {
+    if (y < 8 || y > 11) { o.add(`14,${y}`); o.add(`15,${y}`); }
+  }
+  // 横线 y=9,10，中间留口 x=13~16
+  for (let x = 0; x < GW; x++) {
+    if (x < 13 || x > 16) { o.add(`${x},9`); o.add(`${x},10`); }
+  }
+  return o;
+}
+function checkerObs() {
+  const o = new Set();
+  // 每隔5格放2×2方块，交错排列
+  for (let bx = 2; bx < GW - 2; bx += 6) {
+    for (let by = 2; by < GH - 2; by += 5) {
+      const offset = (Math.floor(by / 5) % 2) * 3; // 交错偏移
+      const cx = bx + offset;
+      if (cx > 0 && cx < GW - 2) {
+        for (let dx = 0; dx < 2; dx++)
+          for (let dy = 0; dy < 2; dy++)
+            o.add(`${cx + dx},${by + dy}`);
+      }
+    }
+  }
+  return o;
+}
+function tunnelObs() {
+  const o = new Set();
+  // 上下两堵墙，中间隧道口
+  for (let x = 0; x < GW; x++) {
+    if (x < 11 || x > 18) { o.add(`${x},4`); o.add(`${x},5`); }
+    if (x < 11 || x > 18) { o.add(`${x},14`); o.add(`${x},15`); }
+  }
+  // 左右两侧竖墙
+  for (let y = 0; y < GH; y++) {
+    if (y < 8 || y > 11) { o.add(`0,${y}`); o.add(`${GW-1},${y}`); }
+  }
+  return o;
+}
+function scatterObs() {
+  const o = new Set();
+  const blocks = [
+    [2,3],[5,2],[8,4],[12,3],[15,2],[20,5],[25,3],[27,4],
+    [3,7],[7,6],[10,8],[14,7],[18,6],[22,8],[26,7],
+    [5,11],[9,10],[13,12],[16,10],[21,11],[25,12],
+    [2,15],[6,14],[11,16],[15,15],[19,14],[23,16],[27,15],
+    [4,17],[8,16],[13,17],[17,16],[22,17],[26,16]
+  ];
+  blocks.forEach(([x,y]) => {
+    if (x > 1 && x < GW-2 && y > 1 && y < GH-2) o.add(`${x},${y}`);
+  });
   return o;
 }
 
