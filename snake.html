@@ -51,6 +51,39 @@ canvas {
   transition: color 0.2s;
 }
 .back-link:hover { color: #50c850; }
+.controls-section {
+  margin-top: 16px;
+  padding: 12px 20px;
+  background: #10101f;
+  border: 1px solid #252545;
+  border-radius: 10px;
+  display: inline-block;
+  text-align: left;
+  line-height: 1.8;
+}
+.controls-section .ctrl-title {
+  color: #888;
+  font-size: 11px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  margin-bottom: 4px;
+}
+.ctrl-row { display: flex; align-items: center; gap: 8px; margin: 3px 0; }
+.ctrl-key {
+  display: inline-block;
+  background: #1a1a35;
+  color: #b0b0e0;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-family: monospace;
+  border: 1px solid #2a2a50;
+  min-width: 24px;
+  text-align: center;
+}
+.ctrl-action { color: #707080; font-size: 12px; }
+.mobile-hints { display: none; }
+.desktop-hints { display: block; }
 </style>
 </head>
 <body>
@@ -64,6 +97,21 @@ canvas {
   </div>
   <div class="hints">方向键/WASD 移动 | 空格 加速 | P 暂停 | Tab 换地图</div>
   <a class="back-link" href="index.html">← 返回游戏大厅</a>
+  <div class="controls-section">
+    <div class="ctrl-title">🎮 操作说明</div>
+    <div class="desktop-hints">
+      <div class="ctrl-row"><span class="ctrl-key">↑</span><span class="ctrl-key">↓</span><span class="ctrl-key">←</span><span class="ctrl-key">→</span><span class="ctrl-action">或 WASD 控制方向</span></div>
+      <div class="ctrl-row"><span class="ctrl-key">空格</span><span class="ctrl-action">按住加速</span></div>
+      <div class="ctrl-row"><span class="ctrl-key">P</span><span class="ctrl-action">暂停 / 继续</span></div>
+      <div class="ctrl-row"><span class="ctrl-key">Tab</span><span class="ctrl-action">切换地图</span></div>
+      <div class="ctrl-row"><span class="ctrl-key">R</span><span class="ctrl-action">重新开始</span></div>
+    </div>
+    <div class="mobile-hints">
+      <div class="ctrl-row"><span class="ctrl-key">👆 滑动</span><span class="ctrl-action">上下左右滑动控制方向</span></div>
+      <div class="ctrl-row"><span class="ctrl-key">👆 双击</span><span class="ctrl-action">切换 加速/正常</span></div>
+      <div class="ctrl-row"><span class="ctrl-key">👆 双指点击</span><span class="ctrl-action">切换地图</span></div>
+    </div>
+  </div>
 </div>
 <script>
 const CELL = 20, GW = 30, GH = 20;
@@ -227,6 +275,60 @@ function updateUI() {
   document.getElementById('boostDisplay').textContent = speedBoost ? '加速中' : '';
 }
 
+// ===== 触屏滑动控制 =====
+let touchStartX = 0, touchStartY = 0, lastTapTime = 0;
+
+canvas.addEventListener('touchstart', e => {
+  e.preventDefault();
+  const t = e.touches[0];
+  touchStartX = t.clientX;
+  touchStartY = t.clientY;
+
+  // 双指 → 切换地图
+  if (e.touches.length >= 2) {
+    if (!running) {
+      currentMap = (currentMap + 1) % MAPS.length; reset();
+    } else {
+      paused = true;
+      currentMap = (currentMap + 1) % MAPS.length; reset();
+    }
+    return;
+  }
+
+  // 双击 → 切换加速
+  const now = Date.now();
+  if (now - lastTapTime < 300 && running && !paused) {
+    speedBoost = !speedBoost;
+    updateUI();
+  }
+  lastTapTime = now;
+}, { passive: false });
+
+canvas.addEventListener('touchend', e => {
+  e.preventDefault();
+  if (!running || paused) return;
+
+  const t = e.changedTouches[0];
+  const dx = t.clientX - touchStartX;
+  const dy = t.clientY - touchStartY;
+  const minSwipe = 20;
+
+  if (Math.abs(dx) < minSwipe && Math.abs(dy) < minSwipe) return; // too short
+
+  let newDir;
+  if (Math.abs(dx) > Math.abs(dy)) {
+    newDir = dx > 0 ? DIR.RIGHT : DIR.LEFT;
+  } else {
+    newDir = dy > 0 ? DIR.DOWN : DIR.UP;
+  }
+
+  if (newDir && newDir !== DIR[direction.opposite]) {
+    nextDir = newDir;
+  }
+});
+
+canvas.addEventListener('touchmove', e => { e.preventDefault(); }, { passive: false });
+
 document.addEventListener('keydown', e => {
   const keyMap = {
     ArrowUp: DIR.UP, w: DIR.UP, W: DIR.UP,
@@ -253,6 +355,13 @@ document.addEventListener('keyup', e => {
 
 currentMap = 0; reset();
 requestAnimationFrame(gameLoop);
+
+// 自动检测平台显示对应操作说明
+(function() {
+  const isMobile = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+  document.querySelector('.desktop-hints').style.display = isMobile ? 'none' : 'block';
+  document.querySelector('.mobile-hints').style.display = isMobile ? 'block' : 'none';
+})();
 </script>
 </body>
 </html>
