@@ -40,13 +40,46 @@ canvas {
 }
 .back-link {
   display: inline-block;
-  margin-top: 12px;
+  margin-top: 14px;
   color: #505060;
   text-decoration: none;
   font-size: 13px;
   transition: color 0.2s;
 }
 .back-link:hover { color: #f0c040; }
+.controls-section {
+  margin-top: 16px;
+  padding: 12px 20px;
+  background: #111a28;
+  border: 1px solid #222840;
+  border-radius: 10px;
+  display: inline-block;
+  text-align: left;
+  line-height: 1.8;
+}
+.controls-section .ctrl-title {
+  color: #888;
+  font-size: 11px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  margin-bottom: 4px;
+}
+.ctrl-row { display: flex; align-items: center; gap: 8px; margin: 3px 0; }
+.ctrl-key {
+  display: inline-block;
+  background: #1a2840;
+  color: #b0c8e0;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-family: monospace;
+  border: 1px solid #2a3850;
+  min-width: 24px;
+  text-align: center;
+}
+.ctrl-action { color: #707080; font-size: 12px; }
+.mobile-hints { display: none; }
+.desktop-hints { display: block; }
 </style>
 </head>
 <body>
@@ -56,6 +89,17 @@ canvas {
   <div class="info"><span id="scoreDisplay">得分: 0</span> | <span id="bestDisplay">最佳: 0</span></div>
   <div class="hints">空格 / 点击 飞翔 | 躲避管道</div>
   <a class="back-link" href="index.html">← 返回游戏大厅</a>
+  <div class="controls-section">
+    <div class="ctrl-title">🎮 操作说明</div>
+    <div class="desktop-hints">
+      <div class="ctrl-row"><span class="ctrl-key">空格</span><span class="ctrl-action">让小鸟向上飞</span></div>
+      <div class="ctrl-row"><span class="ctrl-key">↑</span><span class="ctrl-action">同上，向上飞</span></div>
+      <div class="ctrl-row"><span class="ctrl-key">鼠标点击</span><span class="ctrl-action">点击画面飞行</span></div>
+    </div>
+    <div class="mobile-hints">
+      <div class="ctrl-row"><span class="ctrl-key">👆 点击</span><span class="ctrl-action">点击屏幕任意位置飞行</span></div>
+    </div>
+  </div>
 </div>
 <script>
 const W = 400, H = 600;
@@ -332,6 +376,13 @@ document.addEventListener('keydown', e => {
 
 reset();
 gameLoop();
+
+// 自动检测平台显示对应操作说明
+(function() {
+  const isMobile = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+  document.querySelector('.desktop-hints').style.display = isMobile ? 'none' : 'block';
+  document.querySelector('.mobile-hints').style.display = isMobile ? 'block' : 'none';
+})();
 </script>
 </body>
 </html>
