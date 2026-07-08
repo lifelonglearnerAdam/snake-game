@@ -44,13 +44,46 @@ canvas {
 }
 .back-link {
   display: inline-block;
-  margin-top: 12px;
+  margin-top: 14px;
   color: #505060;
   text-decoration: none;
   font-size: 13px;
   transition: color 0.2s;
 }
 .back-link:hover { color: #d8a050; }
+.controls-section {
+  margin-top: 16px;
+  padding: 12px 20px;
+  background: #1a1a1a;
+  border: 1px solid #333;
+  border-radius: 10px;
+  display: inline-block;
+  text-align: left;
+  line-height: 1.8;
+}
+.controls-section .ctrl-title {
+  color: #777;
+  font-size: 11px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  margin-bottom: 4px;
+}
+.ctrl-row { display: flex; align-items: center; gap: 8px; margin: 3px 0; }
+.ctrl-key {
+  display: inline-block;
+  background: #2a2a2a;
+  color: #c8c8c8;
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-size: 11px;
+  font-family: monospace;
+  border: 1px solid #444;
+  min-width: 24px;
+  text-align: center;
+}
+.ctrl-action { color: #808080; font-size: 12px; }
+.mobile-hints { display: none; }
+.desktop-hints { display: block; }
 </style>
 </head>
 <body>
@@ -60,6 +93,18 @@ canvas {
   <div class="info"><span id="scoreDisplay">得分: 0</span> | <span id="bestDisplay">最佳: 0</span></div>
   <div class="hints">点击/空格/↑ 跳跃 | ↓ 或长按蹲下 | 手机兼容</div>
   <a class="back-link" href="index.html">← 返回游戏大厅</a>
+  <div class="controls-section">
+    <div class="ctrl-title">🎮 操作说明</div>
+    <div class="desktop-hints">
+      <div class="ctrl-row"><span class="ctrl-key">空格</span><span class="ctrl-key">↑</span><span class="ctrl-action">跳跃</span></div>
+      <div class="ctrl-row"><span class="ctrl-key">↓</span><span class="ctrl-action">蹲下（躲避飞鸟）</span></div>
+      <div class="ctrl-row"><span class="ctrl-key">鼠标点击</span><span class="ctrl-action">点击画面跳跃</span></div>
+    </div>
+    <div class="mobile-hints">
+      <div class="ctrl-row"><span class="ctrl-key">👆 点击</span><span class="ctrl-action">跳跃</span></div>
+      <div class="ctrl-row"><span class="ctrl-key">👆 长按</span><span class="ctrl-action">蹲下（躲避飞鸟）</span></div>
+    </div>
+  </div>
 </div>
 <script>
 const W = 700, H = 300;
@@ -380,6 +425,13 @@ document.addEventListener('touchcancel', e => {
 
 reset();
 gameLoop();
+
+// 自动检测平台显示对应操作说明
+(function() {
+  const isMobile = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+  document.querySelector('.desktop-hints').style.display = isMobile ? 'none' : 'block';
+  document.querySelector('.mobile-hints').style.display = isMobile ? 'block' : 'none';
+})();
 </script>
 </body>
 </html>
