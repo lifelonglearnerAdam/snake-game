@@ -84,6 +84,91 @@ canvas {
 .ctrl-action { color: #707080; font-size: 12px; }
 .mobile-hints { display: none; }
 .desktop-hints { display: block; }
+
+/* ===== 手机虚拟方向键 ===== */
+.mobile-dpad {
+  display: none;
+  margin-top: 14px;
+  user-select: none;
+  -webkit-user-select: none;
+}
+.dpad-grid {
+  display: grid;
+  grid-template-columns: 70px 70px 70px;
+  grid-template-rows: 70px 70px 70px;
+  gap: 6px;
+  justify-content: center;
+}
+.dpad-btn {
+  background: rgba(80, 200, 80, 0.12);
+  border: 2px solid rgba(80, 200, 80, 0.25);
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.1s;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+.dpad-btn:active, .dpad-btn.pressed {
+  background: rgba(80, 200, 80, 0.35);
+  border-color: rgba(80, 200, 80, 0.5);
+}
+.dpad-arrow {
+  width: 0; height: 0;
+  border-left: 16px solid transparent;
+  border-right: 16px solid transparent;
+  border-bottom: 24px solid rgba(200,255,200,0.6);
+}
+.dpad-arrow.down  { transform: rotate(180deg); }
+.dpad-arrow.left  { transform: rotate(-90deg); }
+.dpad-arrow.right { transform: rotate(90deg); }
+
+.dpad-center {
+  background: rgba(255, 200, 50, 0.1);
+  border: 2px solid rgba(255, 200, 50, 0.25);
+  border-radius: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #ffc832;
+  font-size: 13px;
+  font-weight: bold;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+.dpad-center:active, .dpad-center.pressed {
+  background: rgba(255, 200, 50, 0.3);
+  border-color: rgba(255, 200, 50, 0.5);
+}
+.dpad-center.boost-on {
+  background: rgba(255, 200, 50, 0.2);
+  border-color: rgba(255, 200, 50, 0.4);
+}
+
+.dpad-actions {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  margin-top: 10px;
+}
+.dpad-action-btn {
+  background: rgba(100,100,180,0.1);
+  border: 1px solid rgba(100,100,180,0.2);
+  border-radius: 10px;
+  color: #a0a0d0;
+  font-size: 13px;
+  padding: 10px 18px;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+.dpad-action-btn:active {
+  background: rgba(100,100,180,0.25);
+  border-color: rgba(100,100,180,0.4);
+}
 </style>
 </head>
 <body>
@@ -107,9 +192,36 @@ canvas {
       <div class="ctrl-row"><span class="ctrl-key">R</span><span class="ctrl-action">重新开始</span></div>
     </div>
     <div class="mobile-hints">
-      <div class="ctrl-row"><span class="ctrl-key">👆 滑动</span><span class="ctrl-action">上下左右滑动控制方向</span></div>
-      <div class="ctrl-row"><span class="ctrl-key">👆 双击</span><span class="ctrl-action">切换 加速/正常</span></div>
-      <div class="ctrl-row"><span class="ctrl-key">👆 双指点击</span><span class="ctrl-action">切换地图</span></div>
+      <div class="ctrl-row"><span class="ctrl-key">🕹️ 方向键</span><span class="ctrl-action">下方虚拟按键控制方向</span></div>
+      <div class="ctrl-row"><span class="ctrl-key">⚡ 闪电键</span><span class="ctrl-action">按住加速</span></div>
+      <div class="ctrl-row"><span class="ctrl-key">🔄 🔁</span><span class="ctrl-action">换地图 / 重新开始</span></div>
+    </div>
+  </div>
+
+  <!-- 手机虚拟方向键 -->
+  <div class="mobile-dpad" id="mobileDpad">
+    <div class="dpad-grid">
+      <div></div>
+      <div class="dpad-btn" id="btnUp" data-dir="UP">
+        <div class="dpad-arrow"></div>
+      </div>
+      <div></div>
+      <div class="dpad-btn" id="btnLeft" data-dir="LEFT">
+        <div class="dpad-arrow left"></div>
+      </div>
+      <div class="dpad-center" id="btnBoost">⚡</div>
+      <div class="dpad-btn" id="btnRight" data-dir="RIGHT">
+        <div class="dpad-arrow right"></div>
+      </div>
+      <div></div>
+      <div class="dpad-btn" id="btnDown" data-dir="DOWN">
+        <div class="dpad-arrow down"></div>
+      </div>
+      <div></div>
+    </div>
+    <div class="dpad-actions">
+      <button class="dpad-action-btn" id="btnMap">🔄 换地图</button>
+      <button class="dpad-action-btn" id="btnRestart">🔁 重来</button>
     </div>
   </div>
 </div>
@@ -275,59 +387,84 @@ function updateUI() {
   document.getElementById('boostDisplay').textContent = speedBoost ? '加速中' : '';
 }
 
-// ===== 触屏滑动控制 =====
-let touchStartX = 0, touchStartY = 0, lastTapTime = 0;
+// ===== 手机虚拟方向键按钮控制 =====
+function setupDpad() {
+  const isMobile = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+  const dpad = document.getElementById('mobileDpad');
+  if (!isMobile) { dpad.style.display = 'none'; return; }
+  dpad.style.display = 'block';
 
-canvas.addEventListener('touchstart', e => {
-  e.preventDefault();
-  const t = e.touches[0];
-  touchStartX = t.clientX;
-  touchStartY = t.clientY;
+  // 方向按钮
+  document.querySelectorAll('.dpad-btn').forEach(btn => {
+    const dirName = btn.dataset.dir;
+    const dirObj = DIR[dirName];
 
-  // 双指 → 切换地图
-  if (e.touches.length >= 2) {
-    if (!running) {
-      currentMap = (currentMap + 1) % MAPS.length; reset();
-    } else {
-      paused = true;
-      currentMap = (currentMap + 1) % MAPS.length; reset();
+    function press(e) {
+      e.preventDefault();
+      if (!running) { reset(); return; }
+      if (paused) return;
+      btn.classList.add('pressed');
+      if (dirObj && dirObj !== DIR[direction.opposite]) {
+        nextDir = dirObj;
+      }
     }
-    return;
-  }
+    function release(e) {
+      e.preventDefault();
+      btn.classList.remove('pressed');
+    }
 
-  // 双击 → 切换加速
-  const now = Date.now();
-  if (now - lastTapTime < 300 && running && !paused) {
-    speedBoost = !speedBoost;
+    btn.addEventListener('mousedown', press);
+    btn.addEventListener('touchstart', press, { passive: false });
+    btn.addEventListener('mouseup', release);
+    btn.addEventListener('mouseleave', release);
+    btn.addEventListener('touchend', release);
+    btn.addEventListener('touchcancel', release);
+  });
+
+  // 加速按钮
+  const btnBoost = document.getElementById('btnBoost');
+  function boostOn(e) {
+    e.preventDefault();
+    if (!running || paused) return;
+    speedBoost = true;
+    btnBoost.classList.add('pressed');
     updateUI();
   }
-  lastTapTime = now;
-}, { passive: false });
-
-canvas.addEventListener('touchend', e => {
-  e.preventDefault();
-  if (!running || paused) return;
-
-  const t = e.changedTouches[0];
-  const dx = t.clientX - touchStartX;
-  const dy = t.clientY - touchStartY;
-  const minSwipe = 20;
-
-  if (Math.abs(dx) < minSwipe && Math.abs(dy) < minSwipe) return; // too short
-
-  let newDir;
-  if (Math.abs(dx) > Math.abs(dy)) {
-    newDir = dx > 0 ? DIR.RIGHT : DIR.LEFT;
-  } else {
-    newDir = dy > 0 ? DIR.DOWN : DIR.UP;
+  function boostOff(e) {
+    e.preventDefault();
+    speedBoost = false;
+    btnBoost.classList.remove('pressed');
+    updateUI();
   }
+  btnBoost.addEventListener('mousedown', boostOn);
+  btnBoost.addEventListener('touchstart', boostOn, { passive: false });
+  btnBoost.addEventListener('mouseup', boostOff);
+  btnBoost.addEventListener('mouseleave', boostOff);
+  btnBoost.addEventListener('touchend', boostOff);
+  btnBoost.addEventListener('touchcancel', boostOff);
 
-  if (newDir && newDir !== DIR[direction.opposite]) {
-    nextDir = newDir;
-  }
-});
+  // 换地图
+  document.getElementById('btnMap').addEventListener('click', e => {
+    e.preventDefault();
+    currentMap = (currentMap + 1) % MAPS.length; reset();
+  });
+  document.getElementById('btnMap').addEventListener('touchstart', e => {
+    e.preventDefault();
+    currentMap = (currentMap + 1) % MAPS.length; reset();
+  });
 
-canvas.addEventListener('touchmove', e => { e.preventDefault(); }, { passive: false });
+  // 重新开始
+  document.getElementById('btnRestart').addEventListener('click', e => {
+    e.preventDefault();
+    if (!running) reset();
+    else { currentMap = currentMap; reset(); }
+  });
+  document.getElementById('btnRestart').addEventListener('touchstart', e => {
+    e.preventDefault();
+    if (!running) reset();
+    else reset();
+  });
+}
 
 document.addEventListener('keydown', e => {
   const keyMap = {
@@ -356,11 +493,12 @@ document.addEventListener('keyup', e => {
 currentMap = 0; reset();
 requestAnimationFrame(gameLoop);
 
-// 自动检测平台显示对应操作说明
+// 自动检测平台显示对应操作说明 + 虚拟方向键
 (function() {
   const isMobile = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
   document.querySelector('.desktop-hints').style.display = isMobile ? 'none' : 'block';
   document.querySelector('.mobile-hints').style.display = isMobile ? 'block' : 'none';
+  setupDpad();
 })();
 </script>
 </body>
