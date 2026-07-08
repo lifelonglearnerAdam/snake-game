@@ -63,13 +63,13 @@ const canvas = document.getElementById('gameCanvas');
 canvas.width = W; canvas.height = H;
 const ctx = canvas.getContext('2d');
 
-// Game constants
-const GRAVITY = 0.45;
-const FLAP_VEL = -7.5;
+// Game constants — 调低难度，提升手感
+const GRAVITY = 0.32;          // 重力降低，下落更慢
+const FLAP_VEL = -8.0;         // 拍翅膀更有力
 const PIPE_WIDTH = 52;
-const PIPE_GAP = 140;
-const PIPE_SPEED = 2.2;
-const PIPE_SPAWN_INTERVAL = 90; // frames
+const PIPE_GAP = 165;          // 管道间距加大
+const PIPE_SPEED = 1.8;        // 管道移动更慢
+const PIPE_SPAWN_INTERVAL = 100; // 管道间隔更远
 const BIRD_X = 80;
 const BIRD_SIZE = 18;
 
@@ -131,16 +131,16 @@ function update() {
   const bx = BIRD_X - BIRD_SIZE, by = birdY - BIRD_SIZE;
   const bw = BIRD_SIZE * 2, bh = BIRD_SIZE * 2;
 
-  // Ground/ceiling
-  if (birdY + BIRD_SIZE > H - 40 || birdY - BIRD_SIZE < 0) {
+  // Ground/ceiling — 给顶部和底部更多容错空间
+  if (birdY + BIRD_SIZE > H - 30 || birdY - BIRD_SIZE < -5) {
     die();
     return;
   }
 
-  // Pipes
+  // Pipes — 碰撞判定稍微宽松
   for (let p of pipes) {
-    if (bx + bw > p.x && bx < p.x + PIPE_WIDTH) {
-      if (by < p.topH || by + bh > p.topH + PIPE_GAP) {
+    if (bx + bw - 4 > p.x && bx + 4 < p.x + PIPE_WIDTH) {
+      if (by + 4 < p.topH || by + bh - 4 > p.topH + PIPE_GAP) {
         die();
         return;
       }
@@ -213,8 +213,8 @@ function draw() {
   const bx = BIRD_X, by = birdY;
   ctx.save();
   ctx.translate(bx, by);
-  // Rotation based on velocity
-  const angle = Math.min(Math.max(birdVel * 0.08, -0.5), 0.8);
+  // Rotation based on velocity — 角度更温和
+  const angle = Math.min(Math.max(birdVel * 0.07, -0.4), 0.55);
   ctx.rotate(angle);
 
   // Body
