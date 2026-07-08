@@ -65,11 +65,11 @@ const ctx = canvas.getContext('2d');
 
 // ===== 难度大幅调低 =====
 const GRAVITY = 0.16;             // 重力：轻盈漂浮感
-const FLAP_VEL = -6.8;            // 拍翅：适中幅度，精细操控
-const PIPE_WIDTH = 52;
-const PIPE_GAP = 185;             // 管道口：原140 → 加宽45px
-const PIPE_SPEED = 1.5;           // 管道速度：原2.2 → 慢很多
-const PIPE_SPAWN_INTERVAL = 120;  // 管道间距：原90帧 → 隔更远
+const FLAP_VEL = -5.5;            // 拍翅：小幅度跳跃，精细操控
+const PIPE_WIDTH = 42;            // 管道宽度：收窄，更好躲
+const PIPE_GAP = 200;             // 管道口：超宽通过空间
+const PIPE_SPEED = 1.2;           // 管道速度：慢速前进
+const PIPE_SPAWN_INTERVAL = 130;  // 管道间距：间隔充裕
 const BIRD_X = 80;
 const BIRD_SIZE = 18;
 
